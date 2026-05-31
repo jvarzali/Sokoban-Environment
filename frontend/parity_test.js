@@ -12,7 +12,7 @@ const files = fs.readdirSync(mapsDir).filter((f) => f.endsWith(".json")).sort();
 const EXPECTED = {
   walk: 3, climb: 1, ascent: 4, pushramp: 7, boxdoor: 2, ledgepush: 3,
   descend: 5, corner: 5, summit: 6, zigzag: 16, overpass: 8, pushramp2: 7,
-  doorbox: 3, overwall: 7, gauntlet: 7, island: 3,
+  doorbox: 3, overwall: 7, gauntlet: 7, island: 3, bridge: 5,
 };
 
 function stateKey(g) {

@@ -129,6 +129,50 @@ class TestBoxes(unittest.TestCase):
         self.assertEqual(res.info["invalid"], "1.0")
 
 
+class TestWalkOnBox(unittest.TestCase):
+    def test_step_onto_box_from_high(self):
+        # [0,0] high, [0,1] box on low (top == high level), [0,2] low.
+        env = make([[1, 8, 0], [9, 3, 3]], goal=(0, 2))
+        env.player = (0, 0)              # stand on the high cell (elevation 2)
+        res = env.step("E")             # box top is at our level -> step on, don't push
+        self.assertEqual(env.player, (0, 1))
+        self.assertIn((0, 1), env.boxes)                       # box did not move
+        self.assertEqual(res.observation["player_elevation"], 2)
+        self.assertEqual(res.observation["grid"][0][1], 11)    # player atop box-on-low
+
+    def test_cannot_climb_onto_box_from_below(self):
+        # From base level you push, never climb up; here the push is wall-blocked.
+        env = make([[9, 8, 3]], goal=(0, 0))
+        res = env.step("E")
+        self.assertEqual(env.player, (0, 0))
+        self.assertEqual(env.boxes, {(0, 1)})
+        self.assertEqual(res.info["invalid"], "1.0")
+
+    def test_walk_across_adjacent_boxes(self):
+        env = make([[1, 8, 8, 0], [9, 3, 3, 3]], goal=(0, 3))
+        env.player = (0, 0)
+        env.step("E")                   # onto first box
+        env.step("E")                   # across onto the second box (both tops level)
+        self.assertEqual(env.player, (0, 2))
+        self.assertEqual(env.boxes, {(0, 1), (0, 2)})
+
+    def test_walk_off_box_descends(self):
+        env = make([[1, 8, 0], [9, 3, 3]], goal=(0, 2))
+        env.player = (0, 0)
+        env.step("E")                   # onto the box (elevation 2)
+        env.step("E")                   # off the box down to low ground
+        self.assertEqual(env.player, (0, 2))
+        self.assertEqual(env.boxes, {(0, 1)})
+
+    def test_player_on_box_on_high_is_code_12(self):
+        # box on high ground -> top is two steps up; encode/elevate accordingly.
+        env = make([[2, 3], [9, 3]], goal=(0, 0))
+        env.player = (0, 0)             # manually placed on the box-on-high
+        obs = env._obs()
+        self.assertEqual(obs["grid"][0][0], 12)
+        self.assertEqual(obs["player_elevation"], 4)
+
+
 class TestEpisode(unittest.TestCase):
     def test_win_reward_and_terminate(self):
         env = make([[9, 0]], goal=(0, 1))

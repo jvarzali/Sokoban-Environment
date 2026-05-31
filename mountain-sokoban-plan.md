@@ -28,9 +28,11 @@ the end of a row, or outside the grid, is treated as wall/void (impassable).
 | `5` | ramp, climbs **East**  | sits on low |
 | `6` | ramp, climbs **South** | sits on low |
 | `7` | ramp, climbs **West**  | sits on low |
-| `8` | box on low ground | low (0) |
+| `8` | box on low ground | low (0); box top +1 step |
 | `9` | player on low ground | low (0) |
 | `10` | player on high ground | high (2) |
+| `11` | player standing on a box (box on low ground) | box top (2) |
+| `12` | player standing on a box (box on high ground) | box top (4) |
 
 Two walkable heights only: **low (0)** and **high (2)**. Ramps bridge the step.
 
@@ -65,17 +67,20 @@ from its downhill/south side) climbs onto `[1,2]` → E onto the goal `[1,3]`.
 
 ## 2. Heights & movement (player)
 
-Let `elev(low)=0`, `elev(high)=2`. A move A → B (B adjacent, cardinal):
+Let `elev(low)=0`, `elev(high)=2`. The player's **standing height** is the
+terrain elevation under them **plus 2 if they're on top of a box** (a box is one
+step tall), so it can be `0`, `2`, or `4`. A move A → B compares B's standable
+surface to the player's current standing height H:
 
 | Case | Condition | Allowed? |
 |------|-----------|----------|
-| Flat | same height | yes |
-| Descend | high → low | yes, no ramp needed |
-| Climb (blank) | low → high, no ramp involved | no — that's a cliff |
+| Flat | surface(B) == H | yes |
+| Descend | surface(B) < H | yes, no ramp needed (free drop) |
+| Climb (blank) | surface(B) == H+2, no ramp | no — that's a cliff |
 | Climb (ramp) | via a ramp, see §3 | yes |
 
-The player can never stop on a wall (`3`) or on a ramp cell, and can't occupy a
-cell holding a box.
+The player can never stop on a wall (`3`) or on a ramp cell. The player *can*
+stand on a box (see §4); the box stays put underneath.
 
 ---
 
@@ -115,7 +120,19 @@ a ramp to line up a low cell with the cliff it must reach is the core puzzle.
 
 ## 4. Boxes
 
-A box is pushed when the player moves into it and the cell beyond is valid:
+A box is one step (2) tall: its **top** surface sits one level above the terrain
+it rests on. What happens when the player moves into a box cell depends on their
+standing height H versus the box's base (terrain) and top (= base + 2):
+
+- **Step on** — H ≥ box top → the player walks onto the box top (flat if level,
+  a drop if higher). From there they can walk across adjacent box tops and step
+  off onto level or lower ground. *You can never climb up onto a box from below*
+  — ramps remain the only way to gain height.
+- **Push** — H == box base (you're level with its footing, beside it) → the box
+  is pushed one cell, per the table below, and the player takes its old square.
+- **Blocked** — H < box base (the box sits up a cliff from you).
+
+A pushed box moves when the cell beyond is valid:
 
 | Box pushed to… | Allowed? | Result |
 |---|:--:|---|
@@ -133,10 +150,15 @@ cliff to do it). Illegal push → nothing moves, the step is flagged `invalid`.
 ## 5. State / observation
 
 Each step the env emits the composite grid (codes from §1) plus a few scalars.
-Player elevation is encoded directly in the grid (`9` = low, `10` = high),
-matching the box encoding (`8` vs `2`). `player_elevation` is also included
-as a convenience scalar. The player never occupies a ramp cell — when climbing
-or descending via a ramp, the player is placed on the cell *beyond* the ramp.
+Player elevation is encoded directly in the grid: `9` = low, `10` = high, and
+`11`/`12` = standing on a box (on low / high ground). `player_elevation`
+(`0`, `2`, or `4`) is also included as a convenience scalar. The player never
+occupies a ramp cell — when climbing or descending via a ramp, the player is
+placed on the cell *beyond* the ramp.
+
+> Note: the `env.py` listing in §6 below is the original sketch; the canonical
+> engine (with box-standing, codes 11/12, and verbose-action parsing) is the
+> live `env.py` at the repo root, mirrored in `frontend/game.js`.
 
 ```json
 {

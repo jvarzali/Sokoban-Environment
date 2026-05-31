@@ -34,12 +34,16 @@ export class View2D {
         } else {
           div.classList.add(t === "high" ? "high" : "low");
           if (isGoal) div.classList.add("goal");
+          const playerHere = g.player[0] === r && g.player[1] === c;
+          const boxHere = g.boxes.has(k);
           if (g.ramps.has(k)) {
             div.appendChild(span("ramp", ARROW[g.ramps.get(k)]));
-          } else if (g.boxes.has(k)) {
+          } else if (playerHere) {
+            // player wins over a box it is standing on; mark the cell as a box top
+            if (boxHere) div.classList.add("onbox");
+            div.appendChild(span("player" + (g.stand([r, c]) >= 2 ? " phigh" : ""), "●"));
+          } else if (boxHere) {
             div.appendChild(span("box" + (t === "high" ? " onhigh" : ""), "■"));
-          } else if (g.player[0] === r && g.player[1] === c) {
-            div.appendChild(span("player" + (t === "high" ? " phigh" : ""), "●"));
           } else if (isGoal) {
             div.appendChild(span("goalring", "◎"));
           }
