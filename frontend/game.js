@@ -1,19 +1,14 @@
-// game.js - Mountain Sokoban rules + renderer (browser port of env.py).
-// The engine here mirrors env.py exactly so the playable client matches the
-// environment the agent is scored against. Maps come from maps.js.
+// game.js - Mountain Sokoban engine (browser port of env.py).
+// Pure rules, no UI. Mirrors env.py exactly so every client (2D, 3D, parity
+// test) shares one verified source of truth. Exposed as window.Sokoban in the
+// browser and module.exports under Node. Maps come from maps.js.
 
 const DELTA = { N: [-1, 0], S: [1, 0], E: [0, 1], W: [0, -1] };
 const OPP   = { N: "S", S: "N", E: "W", W: "E" };
-const KEYS  = {
-  ArrowUp: "N", ArrowDown: "S", ArrowLeft: "W", ArrowRight: "E",
-  w: "N", s: "S", a: "W", d: "E", W: "N", S: "S", A: "W", D: "E",
-};
 const RAMP_DIR = { 4: "N", 5: "E", 6: "S", 7: "W" };
 const DIR_RAMP = { N: 4, E: 5, S: 6, W: 7 };
 const ELEV = { low: 0, high: 2 };
-const ARROW = { N: "↑", E: "→", S: "↓", W: "←" };
 
-// ---- engine ----------------------------------------------------------------
 class Sokoban {
   constructor(map) {
     this.name = map.name || "map";
@@ -114,138 +109,37 @@ class Sokoban {
   }
 }
 
-// ---- UI --------------------------------------------------------------------
-const maps = (typeof window !== "undefined" && window.SOKOBAN_MAPS) || [];
-let game = null;
-let history = [];
-let mapIndex = 0;
-
-const inBrowser = typeof document !== "undefined";
-const boardEl = inBrowser ? document.getElementById("board") : null;
-const statusEl = inBrowser ? document.getElementById("status") : null;
-const selectEl = inBrowser ? document.getElementById("mapSelect") : null;
-const elevEl = inBrowser ? document.getElementById("elev") : null;
-
-function loadMap(i) {
-  mapIndex = (i + maps.length) % maps.length;
-  game = new Sokoban(maps[mapIndex]);
-  history = [];
-  selectEl.value = String(mapIndex);
-  render(null);
-}
-
-function doMove(dir) {
-  if (!game || game.won) return;
-  const before = game.snapshot();
-  const ok = game.move(dir);
-  if (ok) history.push(before);
-  render(ok ? null : "invalid");
-}
-
-function undo() {
-  if (history.length) { game.restore(history.pop()); render(null); }
-}
-
-function render(flash) {
-  const cell = Math.max(28, Math.min(56, Math.floor(520 / Math.max(game.nrows, maxCols()))));
-  boardEl.style.gridTemplateColumns = `repeat(${maxCols()}, ${cell}px)`;
-  boardEl.innerHTML = "";
-  for (let r = 0; r < game.nrows; r++) {
-    for (let c = 0; c < maxCols(); c++) {
-      const div = document.createElement("div");
-      div.className = "tile";
-      div.style.width = div.style.height = `${cell}px`;
-      div.style.fontSize = `${Math.floor(cell * 0.5)}px`;
-      const here = [r, c];
-      const t = game.terr(here);
-      const k = `${r},${c}`;
-      const isGoal = game.goal[0] === r && game.goal[1] === c;
-      if (!game.inb(here) || t === "wall") {
-        div.classList.add("wall");
-      } else {
-        div.classList.add(t === "high" ? "high" : "low");
-        if (isGoal) div.classList.add("goal");
-        if (game.ramps.has(k)) {
-          const a = document.createElement("span");
-          a.className = "ramp";
-          a.textContent = ARROW[game.ramps.get(k)];
-          div.appendChild(a);
-        } else if (game.boxes.has(k)) {
-          const b = document.createElement("span");
-          b.className = "box" + (t === "high" ? " onhigh" : "");
-          b.textContent = "■";
-          div.appendChild(b);
-        } else if (game.player[0] === r && game.player[1] === c) {
-          const p = document.createElement("span");
-          p.className = "player" + (t === "high" ? " phigh" : "");
-          p.textContent = "●";
-          div.appendChild(p);
-        } else if (isGoal) {
-          const ring = document.createElement("span");
-          ring.className = "goalring";
-          ring.textContent = "◎";
-          div.appendChild(ring);
+// Shared BFS solver: returns the shortest action list to the goal, or null.
+Sokoban.solve = function solve(map) {
+  const stateKey = (g) => {
+    const boxes = [...g.boxes].sort().join("|");
+    const ramps = [...g.ramps.entries()].map(([k, v]) => `${k}:${v}`).sort().join("|");
+    return `${g.player[0]},${g.player[1]};${boxes};${ramps}`;
+  };
+  const s = new Sokoban(map);
+  if (s.player[0] === s.goal[0] && s.player[1] === s.goal[1]) return [];
+  const seen = new Set([stateKey(s)]);
+  let frontier = [{ snap: s.snapshot(), path: [] }];
+  const probe = new Sokoban(map);
+  for (let depth = 0; depth < 10000 && frontier.length; depth++) {
+    const next = [];
+    for (const node of frontier) {
+      for (const dir of ["N", "S", "E", "W"]) {
+        probe.restore(node.snap);
+        if (!probe.move(dir)) continue;
+        if (probe.player[0] === probe.goal[0] && probe.player[1] === probe.goal[1]) {
+          return [...node.path, dir];
         }
+        const k = stateKey(probe);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        next.push({ snap: probe.snapshot(), path: [...node.path, dir] });
       }
-      boardEl.appendChild(div);
     }
+    frontier = next;
   }
-  const pe = ELEV[game.terr(game.player)];
-  elevEl.textContent = pe === 2 ? "high" : "low";
-  elevEl.className = pe === 2 ? "badge high" : "badge low";
-  let msg;
-  if (game.won) {
-    msg = `✔ Solved "${game.name}" in ${game.steps} steps!`;
-    statusEl.className = "status win";
-  } else if (game.steps >= game.maxSteps) {
-    msg = `✗ Out of steps (${game.steps}/${game.maxSteps}). Press Reset.`;
-    statusEl.className = "status fail";
-  } else {
-    msg = `${game.name} — steps ${game.steps}/${game.maxSteps}`;
-    statusEl.className = flash === "invalid" ? "status invalid" : "status";
-  }
-  statusEl.textContent = msg;
-}
+  return null;
+};
 
-function maxCols() { return Math.max(...game.rowlen); }
-
-// ---- wiring ----------------------------------------------------------------
-function init() {
-  if (!maps.length) {
-    statusEl.textContent = "No maps loaded (run python frontend/build_maps.py).";
-    return;
-  }
-  maps.forEach((m, i) => {
-    const o = document.createElement("option");
-    o.value = String(i);
-    o.textContent = `${i + 1}. ${m.name}`;
-    selectEl.appendChild(o);
-  });
-  selectEl.addEventListener("change", (e) => loadMap(Number(e.target.value)));
-  // Prevent arrow keys on the map select from switching maps unintentionally.
-  selectEl.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight" ||
-        e.key === "ArrowUp"   || e.key === "ArrowDown") {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
-  document.getElementById("reset").addEventListener("click", () => loadMap(mapIndex));
-  document.getElementById("undo").addEventListener("click", undo);
-  document.getElementById("prev").addEventListener("click", () => loadMap(mapIndex - 1));
-  document.getElementById("next").addEventListener("click", () => loadMap(mapIndex + 1));
-  document.querySelectorAll("[data-dir]").forEach((btn) =>
-    btn.addEventListener("click", () => doMove(btn.dataset.dir)));
-  window.addEventListener("keydown", (e) => {
-    // Don't process game keys when the replay pane is active.
-    if (document.getElementById("replayPane")?.classList.contains("active")) return;
-    if (e.key === "r" || e.key === "R") { loadMap(mapIndex); return; }
-    if (e.key === "u" || e.key === "U") { undo(); return; }
-    const dir = KEYS[e.key];
-    if (dir) { e.preventDefault(); doMove(dir); }
-  });
-  loadMap(0);
-}
-
-if (inBrowser) init();
+if (typeof window !== "undefined") window.Sokoban = Sokoban;
 if (typeof module !== "undefined" && module.exports) module.exports = { Sokoban };
