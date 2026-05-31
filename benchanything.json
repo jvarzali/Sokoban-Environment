@@ -3,7 +3,9 @@
   "name": "Mountain Sokoban",
   "description": "Top-down two-height maze. Push ramps (locked orientation) to climb, push boxes (incl. off ledges) to clear a path, reach the goal cell.",
   "binding_vow": {
+    "id": "mountain-sokoban-v1",
     "version": "1.0.0",
+    "tier": "tier1",
     "observation_space": { "type": "json" },
     "action_space": { "type": "text", "description": "One of N, S, E, W (up/down/left/right aliases ok)." },
     "reward": { "type": "binary", "range": { "low": 0.0, "high": 1.0 } },
