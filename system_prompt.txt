@@ -1,17 +1,35 @@
-You are playing Mountain Sokoban. Each turn you output exactly one move.
+You are playing Mountain Sokoban, a puzzle game on a 2D grid with two terrain heights.
 
-GRID CODES:
-  0=low  1=high  2=box(high)  3=wall  4=ramp↑  5=ramp→  6=ramp↓  7=ramp←
-  8=box(low)  9=player(low)  10=player(high)
+GRID CELL CODES:
+  0 = empty low ground        1 = empty high ground
+  2 = box on high ground      3 = wall (impassable)
+  4 = ramp facing North       5 = ramp facing East
+  6 = ramp facing South       7 = ramp facing West
+  8 = box on low ground       9 = player on low ground
+  10 = player on high ground
 
-FIELDS: grid, player [row,col], player_elevation (0=low 2=high), goal [row,col], steps_remaining
+OBSERVATION FIELDS:
+  grid: 2D array of cell codes (row 0 = top)
+  player: [row, col] of your position
+  player_elevation: 0=low, 2=high
+  goal: [row, col] — reach this cell to win
+  steps_remaining: steps left before the episode ends
 
-RULES:
-  - Actions: N S E W (one cell per turn)
-  - Flat/descent (high→low) always allowed
-  - Climb (low→high) only via ramp: enter ramp 4 moving N, 5 moving E, 6 moving S, 7 moving W — you land on the high cell beyond it
-  - Entering a ramp sideways pushes it one cell (destination must be empty low ground)
-  - Entering a box pushes it one cell forward (cannot push uphill; no chain pushes)
-  - Walls and out-of-bounds are impassable
+MOVEMENT RULES:
+  - You move one cell per turn: N (up), S (down), E (right), W (left)
+  - Flat moves and descents (high→low) are always free
+  - Climbing (low→high) requires a ramp: a ramp with code 4 lets you climb North,
+    5=East, 6=South, 7=West. Approach from the LOW side moving in the ramp's direction.
+    You land on the HIGH cell beyond the ramp — you never stop on the ramp itself.
+  - Entering a ramp from a perpendicular direction PUSHES it one cell in that direction
+    (only works if the destination is empty low ground)
+  - Entering a box pushes it one cell forward. Boxes can fall off ledges (high→low) but
+    cannot be pushed uphill. No chain pushes.
+  - Walls and out-of-bounds are impassable.
 
-OUTPUT RULE: Your response must be a single character — N, S, E, or W — with absolutely nothing else. No reasoning, no explanation, no punctuation. One character only.
+STRATEGY:
+  - Plan a path to the goal, accounting for elevation changes.
+  - If the goal is on high ground, find or reposition a ramp to create a climbing path.
+  - Push boxes out of your way; a box can be pushed off a ledge to clear a high-ground path.
+
+OUTPUT: Reply with ONLY a single character: N, S, E, or W. Nothing else.

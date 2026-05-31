@@ -1,10 +1,15 @@
 // replay.js — Agent replay viewer. Reads the JSON exported by `mesocosm run export`.
+// Each LLM call is expanded into individual move frames using the local game engine,
+// so the viewer steps through one env action at a time instead of one LLM call at a time.
 
 const ACTION_RE = /\b(north|south|east|west|up|down|left|right|[nsew])\b/i;
+const ACTION_RE_ALL = /\b(north|south|east|west|up|down|left|right|[nsew])\b/gi;
 const ALIAS_MAP = {
   up:"N", down:"S", left:"W", right:"E",
   north:"N", south:"S", east:"E", west:"W",
 };
+const DIR_RAMP_MAP = { N: 4, E: 5, S: 6, W: 7 };
+
 function parseAction(raw) {
   const t = raw.trim();
   const direct = ALIAS_MAP[t.toLowerCase()] || t.toUpperCase();
@@ -14,9 +19,109 @@ function parseAction(raw) {
   return "?";
 }
 
+// Extract every direction token from a (potentially verbose) LLM response.
+function extractAllActions(text) {
+  return [...text.matchAll(ACTION_RE_ALL)]
+    .map(m => ALIAS_MAP[m[1].toLowerCase()] || m[1].toUpperCase())
+    .filter(a => "NSEW".includes(a) && a.length === 1);
+}
+
+// Normalise the two board_before formats: {observation:{…}} or flat {grid:…}.
+function getObs(boardField) {
+  if (!boardField) return null;
+  return boardField.observation || boardField;
+}
+
+// Render the current Sokoban state back into an observation object.
+function obsFromGame(game, baseObs) {
+  const grid = [];
+  for (let r = 0; r < game.nrows; r++) {
+    const row = [];
+    for (let c = 0; c < game.rowlen[r]; c++) {
+      const k = `${r},${c}`;
+      const t = game.terrain[r][c];
+      if (t === "wall") {
+        row.push(3);
+      } else if (game.ramps.has(k)) {
+        row.push(DIR_RAMP_MAP[game.ramps.get(k)]);
+      } else if (game.boxes.has(k)) {
+        row.push(t === "high" ? 2 : 8);
+      } else if (game.player[0] === r && game.player[1] === c) {
+        row.push(t === "high" ? 10 : 9);
+      } else {
+        row.push(t === "high" ? 1 : 0);
+      }
+    }
+    grid.push(row);
+  }
+  const stepsUsed  = (baseObs.steps_used  || 0) + game.steps;
+  const stepsLeft  = Math.max(0, (baseObs.steps_remaining || 100) - game.steps);
+  return {
+    grid,
+    player: [...game.player],
+    player_elevation: game.terr(game.player) === "high" ? 2 : 0,
+    goal: baseObs.goal,
+    steps_used: stepsUsed,
+    steps_remaining: stepsLeft,
+  };
+}
+
+// Expand one LLM-call step into an array of individual move frames.
+// Frame 0 is the "thinking" frame (board_before, no action yet).
+// Frames 1..N are one frame per direction token executed.
+function expandLLMStep(llmStep) {
+  const baseObs = getObs(llmStep.board_before);
+  if (!baseObs || !baseObs.grid) {
+    return [{
+      obs: baseObs, action: null, reasoning: llmStep.reasoning,
+      isInvalid: false, isLLMStart: true, terminated: false, truncated: false, reward: 0,
+    }];
+  }
+
+  let game;
+  try {
+    const maxSteps = (baseObs.steps_used || 0) + (baseObs.steps_remaining || 100);
+    game = new Sokoban({ name: "replay", grid: baseObs.grid, goal: baseObs.goal, max_steps: maxSteps });
+  } catch (e) {
+    return [{ obs: baseObs, action: null, reasoning: llmStep.reasoning,
+              isInvalid: false, isLLMStart: true, terminated: false, truncated: false, reward: 0 }];
+  }
+
+  const frames = [];
+
+  // Thinking frame — what the agent saw before deciding
+  frames.push({
+    obs: obsFromGame(game, baseObs),
+    action: null,
+    reasoning: llmStep.reasoning,
+    isLLMStart: true,
+    isInvalid: false,
+    terminated: false,
+    truncated: false,
+    reward: 0,
+  });
+
+  for (const dir of extractAllActions(llmStep.action || "")) {
+    const ok = game.move(dir);
+    frames.push({
+      obs: obsFromGame(game, baseObs),
+      action: dir,
+      reasoning: llmStep.reasoning,
+      isLLMStart: false,
+      isInvalid: !ok,
+      terminated: game.won,
+      truncated: !game.won && game.steps >= game.maxSteps,
+      reward: game.won ? 1.0 : 0.0,
+    });
+    if (game.won || game.steps >= game.maxSteps) break;
+  }
+
+  return frames;
+}
+
 // ── state ──────────────────────────────────────────────────────────────────
-let replayData   = null;   // parsed export JSON
-let episodes     = [];     // [{id, seed, won, steps:[...]}]
+let replayData   = null;
+let episodes     = [];     // [{id, seed, won, steps:[frame…]}]
 let epIndex      = 0;
 let stepIndex    = 0;
 
@@ -53,14 +158,11 @@ function buildEpisodes() {
     epMeta[ep.id] = ep;
   }
   episodes = [];
-  for (const [id, steps] of Object.entries(replayData.replay || {})) {
+  for (const [id, rawSteps] of Object.entries(replayData.replay || {})) {
     const meta = epMeta[id] || {};
-    episodes.push({
-      id,
-      seed: meta.seed ?? "?",
-      won: meta.total_reward > 0,
-      steps,
-    });
+    // Expand each LLM call into individual move frames
+    const steps = rawSteps.flatMap(s => expandLLMStep(s));
+    episodes.push({ id, seed: meta.seed ?? "?", won: meta.total_reward > 0, steps });
   }
   episodes.sort((a, b) => a.seed - b.seed);
 
@@ -83,7 +185,6 @@ replayEpSel.addEventListener("change", (e) => {
   stepIndex = 0;
   renderReplay();
 });
-// Prevent the select from swallowing arrow keys — delegate to step navigation instead.
 replayEpSel.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft" || e.key === "ArrowRight" ||
       e.key === "ArrowUp"   || e.key === "ArrowDown") {
@@ -91,17 +192,15 @@ replayEpSel.addEventListener("keydown", (e) => {
     e.stopPropagation();
     if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   stepBack();
     if (e.key === "ArrowRight" || e.key === "ArrowDown") stepFwd();
+    replayEpSel.value = String(epIndex);
   }
 });
 replayPrev.addEventListener("click", () => { stepBack(); replayPrev.focus(); });
 replayNext.addEventListener("click", () => { stepFwd();  replayNext.focus(); });
-// Arrow key step navigation — fires for the whole pane except when focus is in
-// the episode select (handled above) or a text input where the user is typing.
 document.addEventListener("keydown", (e) => {
   if (!document.getElementById("replayPane").classList.contains("active")) return;
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   const tag = document.activeElement?.tagName;
-  // Let the textarea keep arrow keys for its own scrolling unless it's readonly.
   if (tag === "INPUT") return;
   e.preventDefault();
   e.stopPropagation();
@@ -121,48 +220,47 @@ function stepFwd() {
 function renderReplay() {
   const ep = episodes[epIndex];
   if (!ep) { replayStatus.textContent = "No data loaded."; return; }
+  replayEpSel.value = String(epIndex);
 
-  const step = ep.steps[stepIndex];
+  const frame = ep.steps[stepIndex];
   const total = ep.steps.length;
-  replayStep.textContent = `Step ${stepIndex + 1} / ${total}`;
+  replayStep.textContent = `Move ${stepIndex + 1} / ${total}`;
   replayPrev.disabled = stepIndex === 0;
   replayNext.disabled = stepIndex === total - 1;
 
-  // Always use board_before — board_after in the export is captured after the env
-  // has already been reset to the next episode (platform bug), so it shows the
-  // wrong map. board_before is always correct: it's what the agent actually saw.
-  const boardData = step.board_before;
-  const obs = boardData?.observation || boardData;
+  drawGrid(frame.obs);
 
-  drawGrid(obs);
+  // Action line
+  if (frame.action) {
+    replayAction.innerHTML =
+      `<b>Action:</b> <code style="font-size:16px;color:${frame.isInvalid?"#e07":"#5d5"}">${frame.action}</code>` +
+      (frame.isInvalid ? " <span style='color:#e07'>(invalid)</span>" : "") +
+      `  <b>Reward:</b> ${frame.reward}` +
+      (frame.terminated ? "  <span style='color:#5d5'>✓ WIN</span>" : "") +
+      (frame.truncated  ? "  <span style='color:#e55'>✗ truncated</span>" : "");
+  } else {
+    replayAction.innerHTML =
+      `<span style="color:var(--muted);font-size:13px">⟳ LLM deciding…</span>`;
+  }
 
-  // Action
-  const parsed = parseAction(step.action || "");
-  const invalid = step.info?.invalid === "1.0";
-  replayAction.innerHTML =
-    `<b>Action:</b> <code style="font-size:16px;color:${invalid?"#e07":"#5d5"}">${parsed}</code>` +
-    (invalid ? " <span style='color:#e07'>(invalid)</span>" : "") +
-    `  <b>Reward:</b> ${step.reward}` +
-    (step.terminated ? "  <span style='color:#5d5'>✓ WIN</span>" : "") +
-    (step.truncated  ? "  <span style='color:#e55'>✗ truncated</span>" : "");
-
-  // Thinking
-  replayThink.value = step.reasoning || "(no reasoning)";
+  // Reasoning
+  replayThink.value = frame.reasoning || "(no reasoning)";
 
   // Info bar
-  const info = step.info || {};
+  const obs = frame.obs || {};
   replayInfo.textContent =
-    `env steps: ${info.steps ?? "–"}  |  success: ${info.success ?? "–"}  |  invalid: ${info.invalid ?? "–"}`;
+    `env step: ${obs.steps_used ?? "–"}  |  steps left: ${obs.steps_remaining ?? "–"}` +
+    (frame.isLLMStart ? "  |  ← new LLM call" : "");
 
-  // Status line
-  if (step.terminated) {
-    replayStatus.textContent = `✓ Solved in ${info.steps} env steps`;
+  // Status
+  if (frame.terminated) {
+    replayStatus.textContent = `✓ Solved in ${obs.steps_used} env steps`;
     replayStatus.className = "status win";
-  } else if (step.truncated) {
-    replayStatus.textContent = `✗ Out of steps (${info.steps})`;
+  } else if (frame.truncated) {
+    replayStatus.textContent = `✗ Out of steps`;
     replayStatus.className = "status fail";
   } else {
-    replayStatus.textContent = `Seed ${ep.seed} — env step ${info.steps ?? "?"}`;
+    replayStatus.textContent = `Seed ${ep.seed} — env step ${obs.steps_used ?? "?"}`;
     replayStatus.className = "status";
   }
 }
