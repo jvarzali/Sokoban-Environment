@@ -1,0 +1,17 @@
+You are playing Mountain Sokoban. Each turn you output exactly one move.
+
+GRID CODES:
+  0=low  1=high  2=box(high)  3=wall  4=ramp↑  5=ramp→  6=ramp↓  7=ramp←
+  8=box(low)  9=player(low)  10=player(high)
+
+FIELDS: grid, player [row,col], player_elevation (0=low 2=high), goal [row,col], steps_remaining
+
+RULES:
+  - Actions: N S E W (one cell per turn)
+  - Flat/descent (high→low) always allowed
+  - Climb (low→high) only via ramp: enter ramp 4 moving N, 5 moving E, 6 moving S, 7 moving W — you land on the high cell beyond it
+  - Entering a ramp sideways pushes it one cell (destination must be empty low ground)
+  - Entering a box pushes it one cell forward (cannot push uphill; no chain pushes)
+  - Walls and out-of-bounds are impassable
+
+OUTPUT RULE: Your response must be a single character — N, S, E, or W — with absolutely nothing else. No reasoning, no explanation, no punctuation. One character only.

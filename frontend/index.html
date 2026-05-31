@@ -18,6 +18,19 @@
   }
   h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
   h1 small { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .tabs { display: flex; gap: 6px; }
+  .tab { background: var(--panel); color: var(--muted); border: 1px solid #34465a;
+         border-radius: 8px; padding: 7px 18px; font-size: 14px; cursor: pointer; }
+  .tab.active { color: var(--ink); border-color: var(--accent); }
+  .pane { display: none; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+  .pane.active { display: flex; }
+  #replayBoard { display: grid; gap: 2px; padding: 8px; background: #0e141b;
+                 border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  #replayThink { width: 560px; max-width: 95vw; height: 110px; background: var(--panel);
+                 color: var(--muted); border: 1px solid #34465a; border-radius: 8px;
+                 padding: 8px; font-size: 12px; font-family: monospace; resize: vertical; }
+  #replayAction { font-size: 14px; }
+  #replayInfo { color: var(--muted); font-size: 12px; }
   .status {
     min-height: 22px; font-size: 15px; font-weight: 600; padding: 6px 14px;
     border-radius: 8px; background: var(--panel); transition: background .15s;
@@ -65,6 +78,14 @@
 </head>
 <body>
   <h1>Mountain Sokoban &nbsp;<small>climb ramps · push boxes · reach the goal</small></h1>
+
+  <div class="tabs">
+    <button class="tab active" data-pane="playPane">▶ Play</button>
+    <button class="tab"        data-pane="replayPane">⏪ Replay</button>
+  </div>
+
+  <!-- ── PLAY PANE ────────────────────────────────────────────── -->
+  <div id="playPane" class="pane active">
   <div id="status" class="status">loading…</div>
 
   <div class="row">
@@ -92,8 +113,41 @@
     <b style="color:#7a4a22">■</b> box (push it, even off a ledge) ·
     <b style="color:#ffd166">dashed</b> = goal. You drop down ledges for free but need a ramp to climb.
   </div>
+  </div><!-- end playPane -->
+
+  <!-- ── REPLAY PANE ──────────────────────────────────────────── -->
+  <div id="replayPane" class="pane">
+    <div class="row">
+      <input type="file" id="replayFile" accept=".json" style="color:var(--muted);font-size:13px" />
+      <select id="replayEpSel" style="min-width:180px"><option>— load a run export —</option></select>
+      <span id="replayStep" style="color:var(--muted);font-size:13px"></span>
+    </div>
+    <div id="replayStatus" class="status"></div>
+    <div id="replayBoard"></div>
+    <div class="row">
+      <button id="replayPrev">◀ Prev</button>
+      <button id="replayNext">Next ▶</button>
+    </div>
+    <div id="replayAction"></div>
+    <textarea id="replayThink" readonly placeholder="Agent reasoning will appear here…"></textarea>
+    <div id="replayInfo"></div>
+    <div class="legend">Load a file exported with <code>mesocosm run export &lt;run-id&gt;</code>.
+      Use <b>← →</b> arrow keys to step through.</div>
+  </div><!-- end replayPane -->
 
   <script src="maps.js"></script>
   <script src="game.js"></script>
+  <script src="replay.js"></script>
+  <script>
+    // Tab switching
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".pane").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.pane).classList.add("active");
+      });
+    });
+  </script>
 </body>
 </html>

@@ -222,6 +222,14 @@ function init() {
     selectEl.appendChild(o);
   });
   selectEl.addEventListener("change", (e) => loadMap(Number(e.target.value)));
+  // Prevent arrow keys on the map select from switching maps unintentionally.
+  selectEl.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight" ||
+        e.key === "ArrowUp"   || e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
   document.getElementById("reset").addEventListener("click", () => loadMap(mapIndex));
   document.getElementById("undo").addEventListener("click", undo);
   document.getElementById("prev").addEventListener("click", () => loadMap(mapIndex - 1));
@@ -229,6 +237,8 @@ function init() {
   document.querySelectorAll("[data-dir]").forEach((btn) =>
     btn.addEventListener("click", () => doMove(btn.dataset.dir)));
   window.addEventListener("keydown", (e) => {
+    // Don't process game keys when the replay pane is active.
+    if (document.getElementById("replayPane")?.classList.contains("active")) return;
     if (e.key === "r" || e.key === "R") { loadMap(mapIndex); return; }
     if (e.key === "u" || e.key === "U") { undo(); return; }
     const dir = KEYS[e.key];
