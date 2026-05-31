@@ -140,7 +140,7 @@ class SokobanEnv(BaseEnv):
                 if   terr == "wall":      row.append(3)
                 elif cell in self.ramps:  row.append(DIR_RAMP[self.ramps[cell]])
                 elif cell in self.boxes:  row.append(2 if terr == "high" else 8)
-                elif cell == self.player: row.append(9)
+                elif cell == self.player: row.append(10 if terr == "high" else 9)
                 else:                     row.append(1 if terr == "high" else 0)
             grid.append(row)
         return {"grid": grid, "player": list(self.player),

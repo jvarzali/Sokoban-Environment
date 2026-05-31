@@ -67,6 +67,7 @@ class TestRamps(unittest.TestCase):
         res = env.step("N")  # uphill into the ramp -> land on the high cell
         self.assertEqual(env.player, (0, 1))
         self.assertEqual(res.observation["player_elevation"], 2)
+        self.assertEqual(res.observation["grid"][0][1], 10)  # player on high -> code 10
         self.assertEqual(res.reward, 1.0)
 
     def test_push_perpendicular(self):
@@ -154,8 +155,26 @@ class TestEpisode(unittest.TestCase):
     def test_obs_recomposes_grid(self):
         env = make([[9, 8, 0]], goal=(0, 2))
         obs = env.step("E").observation  # player to (0,1), box to (0,2)
-        self.assertEqual(obs["grid"], [[0, 9, 8]])
+        self.assertEqual(obs["grid"], [[0, 9, 8]])  # player on low -> 9
         self.assertEqual(obs["player"], [0, 1])
+
+    def test_player_on_high_is_code_10(self):
+        env = make([[1, 0], [9, 3]], goal=(1, 0))
+        env.player = (0, 0)  # manually place on high ground
+        obs = env._obs()
+        self.assertEqual(obs["grid"][0][0], 10)
+        self.assertEqual(obs["player_elevation"], 2)
+
+    def test_player_never_on_ramp_in_obs(self):
+        # After a ramp push, the ramp slides away and the player occupies the
+        # vacated low cell — never the ramp cell itself.
+        grid = [[3, 3, 3, 3],
+                [9, 4, 0, 3]]
+        env = make(grid, goal=(0, 0))
+        env.step("E")  # push ramp east; player -> (1,1), ramp -> (1,2)
+        obs = env._obs()
+        self.assertEqual(obs["grid"][1][1], 9)    # player code (low), not a ramp code
+        self.assertEqual(obs["grid"][1][2], 4)    # ramp is at (1,2)
 
 
 if __name__ == "__main__":

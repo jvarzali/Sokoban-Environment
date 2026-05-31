@@ -18,7 +18,8 @@ Full rule spec: [`mountain-sokoban-plan.md`](mountain-sokoban-plan.md).
 | `3` | wall / void | — |
 | `4`–`7` | ramp, climbs N / E / S / W | on low |
 | `8` | box on low ground | low |
-| `9` | player | low |
+| `9` | player on low ground | low |
+| `10` | player on high ground | high |
 
 The goal is a separate `[row, col]` field. Rows may be ragged; anything off the
 grid is treated as wall.

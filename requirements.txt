@@ -1,4 +1,3 @@
 # Mountain Sokoban depends only on the Mesocosm env SDK.
-# A local stand-in lives at src/env_sdk.py so the package runs without the
-# framework installed; replace this line with the real SDK at submission.
-# mesocosm-env-sdk
+# src/env_sdk.py is a local shim for development; the platform installs this.
+swecc-mesocosm

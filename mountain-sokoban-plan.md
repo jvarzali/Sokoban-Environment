@@ -29,7 +29,8 @@ the end of a row, or outside the grid, is treated as wall/void (impassable).
 | `6` | ramp, climbs **South** | sits on low |
 | `7` | ramp, climbs **West**  | sits on low |
 | `8` | box on low ground | low (0) |
-| `9` | player | (its terrain) |
+| `9` | player on low ground | low (0) |
+| `10` | player on high ground | high (2) |
 
 Two walkable heights only: **low (0)** and **high (2)**. Ramps bridge the step.
 
@@ -132,8 +133,10 @@ cliff to do it). Illegal push → nothing moves, the step is flagged `invalid`.
 ## 5. State / observation
 
 Each step the env emits the composite grid (codes from §1) plus a few scalars.
-`player_elevation` disambiguates the single `9` cell (the grid can't show the
-player's height); box height is already encoded by `8` vs `2`.
+Player elevation is encoded directly in the grid (`9` = low, `10` = high),
+matching the box encoding (`8` vs `2`). `player_elevation` is also included
+as a convenience scalar. The player never occupies a ramp cell — when climbing
+or descending via a ramp, the player is placed on the cell *beyond* the ramp.
 
 ```json
 {
