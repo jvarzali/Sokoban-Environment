@@ -35,6 +35,37 @@ requirements.txt  # depends only on the Mesocosm env SDK
 maps/*.json       # 16 authored maps, easy -> hard, all BFS-verified solvable
 src/env_sdk.py    # local stand-in for the Mesocosm SDK (swap at submission)
 tests/test_env.py # engine unit tests
+frontend/         # browser viewers (2D + 3D) that reuse a JS port of the engine
+```
+
+## Frontend (play / watch in the browser)
+
+One page under `frontend/index.html` with a **2D / 3D / Split** view toggle. Both
+views share `game.js` — a JS port of `env.py` verified move-for-move against it
+(`node frontend/parity_test.js`). Features: arrow keys / WASD to move, undo, map
+picker, **★ Solve & play** to watch the BFS solution animate, a speed slider, and
+a trajectory box to replay an agent's run (paste `["S","E","N","E"]`). The 3D
+view (Three.js, vendored in `frontend/vendor/`, no internet needed) orbits/zooms
+and tweens the player up ramps and boxes off ledges.
+
+**Serve it over HTTP — don't open the file directly.** The app uses ES modules,
+which browsers block on `file://`:
+
+```bash
+python -m http.server 8000        # from the repo root
+# then open http://localhost:8000/frontend/
+```
+
+Regenerate the bundled maps after editing `maps/` with `python frontend/build_maps.py`.
+
+```
+frontend/
+  index.html      # the app (2D / 3D / Split toggle)
+  game.js         # engine: JS port of env.py (also used by parity_test)
+  view2d.js       # 2D grid renderer        app.js  # controller (wires it together)
+  view3d.js       # 3D Three.js renderer     maps.js # bundled maps (build_maps.py)
+  vendor/         # vendored three.module.js + OrbitControls.js
+  parity_test.js  # node check: JS engine == Python engine
 ```
 
 `src/env_sdk.py` is a minimal local shim so the package runs and tests pass
