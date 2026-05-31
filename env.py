@@ -1,0 +1,150 @@
+# env.py - Mountain Sokoban
+#
+# A top-down Sokoban over a two-height grid. Terrain is low (0) or high (2);
+# walls are impassable. The player walks flat, drops down ledges for free, and
+# climbs the one height step only by crossing a correctly-oriented ramp. Boxes
+# and ramps are single-push obstacles/tools. Reach the goal cell to win.
+#
+# See mountain-sokoban-plan.md for the full rule spec.
+import json
+import glob
+import os
+
+from src.env_sdk import BaseEnv, StepResult
+
+DELTA    = {"N": (-1, 0), "S": (1, 0), "E": (0, 1), "W": (0, -1)}
+OPP      = {"N": "S", "S": "N", "E": "W", "W": "E"}
+ALIAS    = {"up": "N", "down": "S", "left": "W", "right": "E"}
+RAMP_DIR = {4: "N", 5: "E", 6: "S", 7: "W"}      # code -> uphill direction
+DIR_RAMP = {v: k for k, v in RAMP_DIR.items()}
+ELEV     = {"low": 0, "high": 2}
+
+_MAPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "maps")
+
+
+def load_maps():
+    """Load every authored map, sorted by filename, for deterministic seeding."""
+    maps = []
+    for path in sorted(glob.glob(os.path.join(_MAPS_DIR, "*.json"))):
+        with open(path, encoding="utf-8") as fh:
+            maps.append(json.load(fh))
+    return maps
+
+
+MAPS = load_maps()
+
+
+class SokobanEnv(BaseEnv):
+    def reset(self, seed=None, **params):
+        # Tests / tools may inject a map dict directly; otherwise pick by seed.
+        m = params.get("map")
+        if m is None:
+            if not MAPS:
+                raise RuntimeError("no maps found in maps/*.json")
+            m = MAPS[(seed or 0) % len(MAPS)]
+        g = m["grid"]
+        self.nrows = len(g)
+        self.rowlen = [len(r) for r in g]
+        self.terrain, self.ramps, self.boxes, self.player = [], {}, set(), None
+        for r, row in enumerate(g):
+            trow = []
+            for c, v in enumerate(row):
+                if   v == 3:        trow.append("wall")
+                elif v in (1, 2):   trow.append("high")   # 1 blank-high, 2 box-high
+                else:               trow.append("low")     # 0,4-7,8,9 on low
+                if   v in RAMP_DIR: self.ramps[(r, c)] = RAMP_DIR[v]
+                elif v in (8, 2):   self.boxes.add((r, c))
+                elif v == 9:        self.player = (r, c)
+            self.terrain.append(trow)
+        if self.player is None:
+            raise ValueError("map has no player (code 9)")
+        self.goal = tuple(m["goal"])
+        self.max_steps = m.get("max_steps", 100)
+        self.steps = 0
+        return self._obs()
+
+    def step(self, action):
+        a = ALIAS.get(action.strip().lower(), action.strip().upper())
+        invalid = a not in DELTA
+        if not invalid:
+            invalid = not self._try_move(a)
+        self.steps += 1
+        won = self.player == self.goal
+        return StepResult(
+            observation=self._obs(),
+            reward=1.0 if won else 0.0,
+            terminated=won,
+            truncated=self.steps >= self.max_steps and not won,
+            info={"success": "1.0" if won else "0.0",
+                  "steps": str(self.steps),
+                  "invalid": "1.0" if invalid else "0.0"},
+        )
+
+    # --- geometry helpers ---
+    def _in(self, x):   return 0 <= x[0] < self.nrows and 0 <= x[1] < self.rowlen[x[0]]
+    def _terr(self, x): return self.terrain[x[0]][x[1]] if self._in(x) else "wall"
+    def _occ(self, x):  return x in self.boxes or x in self.ramps
+    def _step(self, x, d): return (x[0] + d[0], x[1] + d[1])
+
+    # --- movement ---
+    def _try_move(self, direction):
+        d, p = DELTA[direction], self.player
+        t = self._step(p, d)
+        if self._terr(t) == "wall":
+            return False
+        if t in self.ramps:
+            return self._ramp(p, t, direction, d)
+        if t in self.boxes:
+            return self._push_box(p, t, d)
+        dh = ELEV[self._terr(t)] - ELEV[self._terr(p)]       # blank target
+        if dh <= 0:                                           # flat or descend
+            self.player = t
+            return True
+        return False                                         # cliff (low->high)
+
+    def _ramp(self, p, t, direction, d):
+        up = self.ramps[t]
+        b = self._step(t, d)                                 # cell beyond ramp
+        if direction == up and self._terr(b) == "high" and not self._occ(b):
+            self.player = b
+            return True                                      # climb
+        if direction == OPP[up] and self._terr(b) == "low" and not self._occ(b):
+            self.player = b
+            return True                                      # descend along ramp
+        if self._terr(b) == "low" and not self._occ(b):      # else push the ramp
+            del self.ramps[t]
+            self.ramps[b] = up
+            self.player = t
+            return True
+        return False
+
+    def _push_box(self, p, t, d):
+        c = self._step(t, d)                                 # box destination
+        if self._terr(c) == "wall" or self._occ(c):
+            return False
+        if ELEV[self._terr(c)] - ELEV[self._terr(t)] > 0:    # no pushing uphill
+            return False
+        if ELEV[self._terr(t)] - ELEV[self._terr(p)] > 0:    # player can't climb to push
+            return False
+        self.boxes.discard(t)
+        self.boxes.add(c)                                    # flat slide or fall-off
+        self.player = t
+        return True
+
+    def _obs(self):
+        grid = []
+        for r in range(self.nrows):
+            row = []
+            for c in range(self.rowlen[r]):
+                cell, terr = (r, c), self.terrain[r][c]
+                if   terr == "wall":      row.append(3)
+                elif cell in self.ramps:  row.append(DIR_RAMP[self.ramps[cell]])
+                elif cell in self.boxes:  row.append(2 if terr == "high" else 8)
+                elif cell == self.player: row.append(9)
+                else:                     row.append(1 if terr == "high" else 0)
+            grid.append(row)
+        return {"grid": grid, "player": list(self.player),
+                "player_elevation": ELEV[self._terr(self.player)],
+                "goal": list(self.goal),
+                "steps_used": self.steps,
+                "steps_remaining": self.max_steps - self.steps}

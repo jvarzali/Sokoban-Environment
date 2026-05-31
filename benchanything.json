@@ -1,0 +1,21 @@
+{
+  "adapter": "adapter.py",
+  "name": "Mountain Sokoban",
+  "description": "Top-down two-height maze. Push ramps (locked orientation) to climb, push boxes (incl. off ledges) to clear a path, reach the goal cell.",
+  "binding_vow": {
+    "version": "1.0.0",
+    "observation_space": { "type": "json" },
+    "action_space": { "type": "text", "description": "One of N, S, E, W (up/down/left/right aliases ok)." },
+    "reward": { "type": "binary", "range": { "low": 0.0, "high": 1.0 } },
+    "episode": { "max_steps": 100, "deterministic_reset": true, "supports_seed": true }
+  },
+  "scoring": {
+    "primary_metric": "success_rate",
+    "higher_is_better": true,
+    "metrics": [
+      { "name": "success_rate", "type": "terminal_field", "field": "success", "aggregation": "pass_rate" },
+      { "name": "avg_steps",    "type": "terminal_field", "field": "steps",   "aggregation": "mean" },
+      { "name": "invalid_rate", "type": "terminal_field", "field": "invalid", "aggregation": "mean" }
+    ]
+  }
+}
