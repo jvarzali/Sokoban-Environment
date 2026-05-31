@@ -66,8 +66,9 @@ export class View2D {
       for (let c = 0; c < Math.max(...engine.rowlen); c++) {
         const here = [r, c];
         const t = engine.terr(here);
+        if (!engine.inb(here) || t === "wall") continue;   // impassable cells render blank
         const tile = document.createElement("div");
-        tile.className = "t2d " + (!engine.inb(here) || t === "wall" ? "wall" : t === "high" ? "high" : "low");
+        tile.className = "t2d " + (t === "high" ? "high" : "low");
         tile.style.width = tile.style.height = `${cell}px`;
         tile.style.left = `${c * cell}px`;
         tile.style.top = `${r * cell}px`;

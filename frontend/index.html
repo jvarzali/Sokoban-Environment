@@ -46,11 +46,10 @@
   #viewport canvas { display: block; }
 
   #board { position: relative; }
-  /* static terrain tiles */
-  .t2d { position: absolute; border-radius: 4px; box-sizing: border-box; }
-  .t2d.low { background: var(--low); }
-  .t2d.high { background: var(--high); box-shadow: inset 0 3px 0 rgba(255,255,255,.18), inset 0 -4px 6px rgba(0,0,0,.35); }
-  .t2d.wall { background: var(--wall); }
+  /* static terrain tiles: edge-to-edge, separated only by a faint inset line */
+  .t2d { position: absolute; box-sizing: border-box; }
+  .t2d.low { background: var(--low); box-shadow: inset 0 0 0 1px rgba(0,0,0,.13); }
+  .t2d.high { background: var(--high); box-shadow: inset 0 3px 0 rgba(255,255,255,.16), inset 0 -4px 6px rgba(0,0,0,.32), inset 0 0 0 1px rgba(0,0,0,.2); }
   .t2d.goal { outline: 2px dashed var(--accent); outline-offset: -4px; }
   /* moving entities (absolutely positioned, slide via transform transitions) */
   .e2d { position: absolute; left: 0; top: 0; will-change: transform; }

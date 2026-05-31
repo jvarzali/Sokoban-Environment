@@ -66,15 +66,10 @@ export class View3D {
     this.mat = {
       low: new THREE.MeshStandardMaterial({ color: COL.low, roughness: 0.95 }),
       high: new THREE.MeshStandardMaterial({ color: COL.high, roughness: 0.9 }),
-      // walls: see-through so they never block the view, with a faint wire outline
-      // so you can still tell an uncrossable block is there.
-      wall: new THREE.MeshStandardMaterial({ color: 0x8aa0b8, roughness: 1.0, transparent: true, opacity: 0.05, depthWrite: false }),
-      wallEdge: new THREE.LineBasicMaterial({ color: 0x9fb2c5, transparent: true, opacity: 0.28 }),
       box: new THREE.MeshStandardMaterial({ color: COL.box, roughness: 0.8 }),
       ramp: new THREE.MeshStandardMaterial({ color: COL.ramp, roughness: 0.7, metalness: 0.1 }),
       goal: new THREE.MeshStandardMaterial({ color: COL.goal, emissive: COL.goal, emissiveIntensity: 0.6 }),
     };
-    this.edgesGeo = new THREE.EdgesGeometry(this.geo.box);
 
     this._last = performance.now();
     this._loop = this._loop.bind(this);
@@ -111,15 +106,7 @@ export class View3D {
         const [x, z] = this._xz(cell);
         const inb = engine.inb(cell);
         const terr = engine.terr(cell);
-        if (!inb || terr === "wall") {
-          // clear block + faint outline; no shadow so it stays unobtrusive
-          const slab = new THREE.Mesh(this.geo.box, this.mat.wall);
-          slab.scale.set(0.98, 1.2, 0.98);
-          slab.position.set(x, 0.0, z);
-          slab.add(new THREE.LineSegments(this.edgesGeo, this.mat.wallEdge));
-          this.boardGroup.add(slab);
-          continue;
-        }
+        if (!inb || terr === "wall") continue;   // impassable cells render blank
         let mat, h, cy;
         if (terr === "high") { mat = this.mat.high; h = 1.5; cy = HIGH_TOP - 0.75; }
         else { mat = this.mat.low; h = 0.5; cy = LOW_TOP - 0.25; }
