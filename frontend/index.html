@@ -6,9 +6,23 @@
 <title>Sokoban</title>
 <style>
   :root {
-    --bg: #1b2430; --panel: #243140; --ink: #e7eef6; --muted: #9fb2c5;
-    --low: #5b8c5a; --high: #b08a4f; --wall: #131a22;
-    --player: #2f6fed; --box: #7a4a22; --accent: #ffd166;
+    --bg: #0c0e13;
+    --surface: #161922;
+    --surface-2: #1d212c;
+    --surface-3: #252b38;
+    --border: #2a3040;
+    --border-2: #3a4254;
+    --ink: #eef2f8;
+    --muted: #98a3b6;
+    --brand: #6c8cff;
+    --brand-2: #8aa2ff;
+    --low: #5b8c5a; --high: #b08a4f; --box: #7a4a22;
+    --player: #2f6fed; --accent: #ffd166;
+    --radius: 12px;
+    --radius-lg: 16px;
+    --shadow: 0 8px 24px rgba(0,0,0,.35);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+    --ease: 160ms cubic-bezier(.4,0,.2,1);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -16,32 +30,110 @@
     background: var(--bg); color: var(--ink); font-family: "Segoe UI", system-ui, sans-serif;
     display: grid; grid-template-rows: auto auto 1fr auto auto; height: 100vh; overflow: hidden;
   }
-  header { padding: 12px 16px 2px; }
-  header h1 { margin: 0; font-size: 19px; }
-  header small { color: var(--muted); font-size: 12.5px; }
-  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 16px; }
-  #hud { font-weight: 600; padding: 5px 12px; border-radius: 8px; background: var(--panel); }
-  #hud.win { background: #1f7a4d; } #hud.fail { background: #8a2f2f; } #hud.invalid { background: #6b4a1f; }
-  button, select, input[type=range] {
-    background: var(--panel); color: var(--ink); border: 1px solid #34465a;
-    border-radius: 8px; padding: 7px 11px; font-size: 14px; cursor: pointer;
+
+  /* ---- header ---- */
+  header { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    background: linear-gradient(145deg, var(--brand), #4c6ef5);
+    box-shadow: 0 4px 14px rgba(76,110,245,.45), inset 0 1px 0 rgba(255,255,255,.25);
+    position: relative;
   }
-  button:hover { border-color: var(--accent); }
-  button.active { background: var(--accent); color: #1b2430; border-color: var(--accent); font-weight: 700; }
-  .seg { display: inline-flex; gap: 4px; padding: 3px; background: #1a232e; border-radius: 10px; }
-  .seg button { padding: 6px 12px; }
-  .badge { padding: 3px 9px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+  .logo::after {
+    content: ""; position: absolute; inset: 9px; border-radius: 3px;
+    background: rgba(255,255,255,.92);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.15);
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
+  header small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+
+  /* ---- toolbar ---- */
+  .bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 10px 12px; box-shadow: var(--shadow-sm);
+  }
+
+  button, select {
+    background: var(--surface-3); color: var(--ink);
+    border: 1px solid var(--border-2); border-radius: 10px;
+    padding: 8px 13px; font-size: 13.5px; font-weight: 500; font-family: inherit;
+    cursor: pointer; transition: background var(--ease), border-color var(--ease), transform var(--ease), box-shadow var(--ease);
+  }
+  button:hover, select:hover { border-color: var(--brand); background: #2b3240; }
+  button:active { transform: translateY(1px); }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: none; box-shadow: 0 0 0 3px rgba(108,140,255,.4); border-color: var(--brand);
+  }
+  button.active {
+    background: linear-gradient(180deg, var(--brand-2), var(--brand));
+    color: #0c0e13; border-color: transparent; font-weight: 700;
+    box-shadow: 0 4px 12px rgba(108,140,255,.4);
+  }
+  select { appearance: none; padding-right: 28px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 15px) center, calc(100% - 10px) center;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+
+  /* segmented control */
+  .seg { display: inline-flex; gap: 3px; padding: 3px; background: rgba(0,0,0,.28);
+         border: 1px solid var(--border); border-radius: 12px; }
+  .seg button { padding: 6px 14px; border: 1px solid transparent; background: transparent; color: var(--muted); }
+  .seg button:hover { background: rgba(255,255,255,.05); color: var(--ink); }
+  .seg button.active { color: #0c0e13; }
+
+  .icon-btn { padding: 8px 11px; }
+
+  #hud {
+    font-weight: 600; font-size: 13px; padding: 7px 14px; border-radius: 10px;
+    background: rgba(0,0,0,.28); border: 1px solid var(--border); white-space: nowrap;
+    transition: background var(--ease), color var(--ease);
+  }
+  #hud.win { background: #1f7a4d; border-color: #2b9d63; }
+  #hud.fail { background: #8a2f2f; border-color: #b14040; }
+  #hud.invalid { background: #6b4a1f; border-color: #9a6c2c; }
+
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
   .badge.low { background: var(--low); } .badge.high { background: var(--high); }
+  .ctl { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12.5px; }
+  .sep { width: 1px; align-self: stretch; background: var(--border); margin: 2px 4px; }
   .spacer { flex: 1; }
 
-  /* stage: 2D panel + 3D panel, layout driven by mode class */
-  .stage { min-height: 0; display: grid; gap: 10px; padding: 0 16px; }
+  /* range slider */
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; height: 5px; width: 92px;
+    border-radius: 999px; background: var(--border-2); cursor: pointer; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--brand); border: 2px solid var(--bg); box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 15px; height: 15px; border: 2px solid var(--bg); border-radius: 50%; background: var(--brand);
+  }
+
+  /* ---- stage ---- */
+  .stage { min-height: 0; display: grid; gap: 12px; }
   .stage.mode-2d { grid-template-columns: 1fr; }
   .stage.mode-3d { grid-template-columns: 1fr; }
   .stage.mode-split { grid-template-columns: 1fr 1fr; }
   .stage.mode-2d #panel3d, .stage.mode-3d #panel2d { display: none; }
-  .panel { min-width: 0; min-height: 0; background: #0e141b; border-radius: 10px; overflow: hidden;
-           display: flex; align-items: center; justify-content: center; }
+  .panel {
+    min-width: 0; min-height: 0; position: relative; overflow: hidden;
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(108,140,255,.06), transparent 60%),
+      #0a0d13;
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.03);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .panel::after {
+    content: attr(data-label); position: absolute; top: 10px; left: 12px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); opacity: .55; pointer-events: none;
+  }
   #viewport { position: relative; width: 100%; height: 100%; }
   #viewport canvas { display: block; }
 
@@ -54,28 +146,38 @@
   /* moving entities (absolutely positioned, slide via transform transitions) */
   .e2d { position: absolute; left: 0; top: 0; will-change: transform; }
   .box2d {
-    background: var(--box); border-radius: 6px;
-    box-shadow: inset 0 4px 0 rgba(255,255,255,.16), inset 0 -6px 9px rgba(0,0,0,.42), 0 2px 4px rgba(0,0,0,.45);
+    background: linear-gradient(160deg, #8a5628, var(--box)); border-radius: 7px;
+    box-shadow: inset 0 4px 0 rgba(255,255,255,.16), inset 0 -6px 9px rgba(0,0,0,.42), 0 3px 6px rgba(0,0,0,.45);
     z-index: 2;
   }
-  .box2d.onhigh { background: #5e3a1b; }
+  .box2d.onhigh { background: linear-gradient(160deg, #6e451f, #5e3a1b); }
   .player2d {
     border-radius: 50%; z-index: 3;
-    background: radial-gradient(circle at 35% 30%, #6ea0ff, var(--player));
-    box-shadow: 0 2px 5px rgba(0,0,0,.55);
+    background: radial-gradient(circle at 35% 30%, #8fb2ff, var(--player));
+    box-shadow: 0 3px 8px rgba(0,0,0,.55), 0 0 0 2px rgba(143,178,255,.25);
   }
-  .player2d.phigh { background: radial-gradient(circle at 35% 30%, #cfe0ff, #7fb0ff); }
+  .player2d.phigh { background: radial-gradient(circle at 35% 30%, #dfeaff, #7fb0ff); }
   .ramp2d {
     display: flex; align-items: center; justify-content: center;
-    background: #6b7785; color: #1a2330; font-weight: 800; border-radius: 5px; z-index: 1;
-    box-shadow: inset 0 2px 0 rgba(255,255,255,.18), 0 1px 2px rgba(0,0,0,.4);
+    background: linear-gradient(160deg, #7c8898, #6b7785); color: #161c26; font-weight: 800; border-radius: 6px; z-index: 1;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 2px 4px rgba(0,0,0,.4);
   }
 
-  .traj { display: flex; gap: 8px; align-items: center; padding: 8px 16px 12px; }
-  .traj textarea {
-    flex: 1; height: 34px; resize: vertical; background: var(--panel); color: var(--ink);
-    border: 1px solid #34465a; border-radius: 8px; padding: 7px 10px; font-family: ui-monospace, monospace; font-size: 13px;
+  /* ---- trajectory bar ---- */
+  .traj {
+    display: flex; gap: 10px; align-items: center;
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 10px 12px; box-shadow: var(--shadow-sm);
   }
+  .traj textarea {
+    flex: 1; height: 38px; min-height: 38px; resize: vertical;
+    background: rgba(0,0,0,.3); color: var(--ink);
+    border: 1px solid var(--border-2); border-radius: 10px; padding: 9px 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
+    transition: border-color var(--ease), box-shadow var(--ease);
+  }
+  .traj textarea::placeholder { color: #66718a; }
   .hint { color: var(--muted); font-size: 12px; }
 
   /* ── Replay pane ───────────────────────────────────────────── */
@@ -117,33 +219,37 @@
 </head>
 <body>
   <header>
-    <h1>Sokoban</h1>
-    <small>Move with arrow keys / WASD · climb ramps, push boxes (even off ledges) or stand on top of them, reach the goal · paste a trajectory and Play to replay a run</small>
+    <div class="logo" aria-hidden="true"></div>
+    <div>
+      <h1>Sokoban</h1>
+      <small>Move with <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> or <kbd>WASD</kbd> · climb ramps, push boxes (even off ledges) or stand on top of them, reach the goal · paste a trajectory and Play to replay a run</small>
+    </div>
   </header>
 
   <div class="bar">
     <span id="hud">loading…</span>
-    <span class="seg">
+    <span class="seg" role="group" aria-label="View mode">
       <button data-mode="2d">2D</button>
       <button data-mode="3d">3D</button>
       <button data-mode="split">Split</button>
     </span>
+    <span class="sep"></span>
     <select id="mapSelect" aria-label="Choose map"></select>
-    <button id="prev">◀</button>
-    <button id="next">▶</button>
+    <button id="prev" class="icon-btn" aria-label="Previous map">◀</button>
+    <button id="next" class="icon-btn" aria-label="Next map">▶</button>
     <button id="reset">⟲ Reset</button>
     <button id="undo">↶ Undo</button>
     <span class="spacer"></span>
     <button id="play">▶ Play</button>
     <button id="step">⏭ Step</button>
-    <label class="hint">speed <input id="speed" type="range" min="0.5" max="4" step="0.5" value="1" style="width:90px" /></label>
-    <span id="speedVal" class="hint">1x</span>
-    <span>player: <span id="elev" class="badge low">low</span></span>
+    <span class="ctl">speed <input id="speed" type="range" min="0.5" max="4" step="0.5" value="1" /> <span id="speedVal">1x</span></span>
+    <span class="sep"></span>
+    <span class="ctl">player <span id="elev" class="badge low">low</span></span>
   </div>
 
   <div id="stage" class="stage mode-2d">
-    <div id="panel2d" class="panel"><div id="board"></div></div>
-    <div id="panel3d" class="panel"><div id="viewport"></div></div>
+    <div id="panel2d" class="panel" data-label="2D"><div id="board"></div></div>
+    <div id="panel3d" class="panel" data-label="3D"><div id="viewport"></div></div>
   </div>
 
   <div class="traj">
