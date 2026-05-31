@@ -67,54 +67,69 @@ function obsFromGame(game, baseObs) {
   };
 }
 
-// Expand one LLM-call step into an array of individual move frames.
-// Frame 0 is the "thinking" frame (board_before, no action yet).
-// Frames 1..N are one frame per direction token executed.
+// Expand one LLM-call step into frames using the actual board_before / board_after
+// observations from the export — no re-execution from verbose reasoning text.
+//
+// The board_before for the very first LLM call of an episode is often stale
+// (it carries the final state of the *previous* episode). We detect this by
+// comparing goals and grid dimensions; if they disagree we skip that frame so
+// the viewer never shows the wrong map.
 function expandLLMStep(llmStep) {
-  const baseObs = getObs(llmStep.board_before);
-  if (!baseObs || !baseObs.grid) {
-    return [{
-      obs: baseObs, action: null, reasoning: llmStep.reasoning,
-      isInvalid: false, isLLMStart: true, terminated: false, truncated: false, reward: 0,
-    }];
-  }
+  const baseObs  = getObs(llmStep.board_before);   // may be null / stale
+  const afterObs = llmStep.board_after;             // flat obs from the export
+  const reasoning = llmStep.reasoning || llmStep.action || "";
 
-  let game;
-  try {
-    const maxSteps = (baseObs.steps_used || 0) + (baseObs.steps_remaining || 100);
-    game = new Sokoban({ name: "replay", grid: baseObs.grid, goal: baseObs.goal, max_steps: maxSteps });
-  } catch (e) {
-    return [{ obs: baseObs, action: null, reasoning: llmStep.reasoning,
-              isInvalid: false, isLLMStart: true, terminated: false, truncated: false, reward: 0 }];
-  }
+  // Decide whether board_before is from the same map as board_after.
+  const bg = baseObs?.goal, ag = afterObs?.goal;
+  const sameMap = !!(
+    baseObs?.grid && afterObs?.grid &&
+    bg && ag &&
+    bg[0] === ag[0] && bg[1] === ag[1] &&
+    baseObs.grid.length === afterObs.grid.length
+  );
 
   const frames = [];
 
-  // Thinking frame — what the agent saw before deciding
-  frames.push({
-    obs: obsFromGame(game, baseObs),
-    action: null,
-    reasoning: llmStep.reasoning,
-    isLLMStart: true,
-    isInvalid: false,
-    terminated: false,
-    truncated: false,
-    reward: 0,
-  });
-
-  for (const dir of extractAllActions(llmStep.action || "")) {
-    const ok = game.move(dir);
+  // Thinking frame — only emit when board_before is from the correct map.
+  if (sameMap) {
     frames.push({
-      obs: obsFromGame(game, baseObs),
-      action: dir,
-      reasoning: llmStep.reasoning,
-      isLLMStart: false,
-      isInvalid: !ok,
-      terminated: game.won,
-      truncated: !game.won && game.steps >= game.maxSteps,
-      reward: game.won ? 1.0 : 0.0,
+      obs: baseObs,
+      action: null,
+      reasoning,
+      isLLMStart: true,
+      isInvalid: false,
+      terminated: false,
+      truncated: false,
+      reward: 0,
     });
-    if (game.won || game.steps >= game.maxSteps) break;
+  }
+
+  // Result frame — the actual state after the env processed this LLM call.
+  if (afterObs?.grid) {
+    const parsedAction = parseAction(llmStep.action || "");
+    const isInvalid = llmStep.info?.invalid === "1.0";
+    frames.push({
+      obs: afterObs,
+      action: "NSEW".includes(parsedAction) ? parsedAction : null,
+      reasoning,
+      isLLMStart: !sameMap,   // mark as new-call start when we skipped thinking frame
+      isInvalid,
+      terminated: llmStep.terminated || false,
+      truncated:  llmStep.truncated  || false,
+      reward:     llmStep.reward     || 0,
+    });
+  } else if (baseObs?.grid) {
+    // No board_after at all — fall back to showing board_before only.
+    frames.push({
+      obs: baseObs,
+      action: null,
+      reasoning,
+      isLLMStart: true,
+      isInvalid: false,
+      terminated: llmStep.terminated || false,
+      truncated:  llmStep.truncated  || false,
+      reward:     llmStep.reward     || 0,
+    });
   }
 
   return frames;
@@ -150,6 +165,9 @@ function tickAutoPlay() {
   if (!replayPlaying) return;
   const ep = episodes[epIndex];
   if (!ep || stepIndex >= ep.steps.length - 1) { stopAutoPlay(); return; }
+  // Stop if the current frame already signals episode end.
+  const cur = ep.steps[stepIndex];
+  if (cur && (cur.terminated || cur.truncated)) { stopAutoPlay(); return; }
   stepFwd();
   replayTimer = setTimeout(tickAutoPlay, replayInterval());
 }
