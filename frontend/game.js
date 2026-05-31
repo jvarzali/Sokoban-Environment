@@ -26,11 +26,13 @@ class Sokoban {
       for (let c = 0; c < g[r].length; c++) {
         const v = g[r][c];
         if (v === 3) trow.push("wall");
-        else if (v === 1 || v === 2) trow.push("high");
+        else if (v === 1 || v === 2 || v === 10 || v === 12) trow.push("high");
         else trow.push("low");
         if (RAMP_DIR[v]) this.ramps.set(`${r},${c}`, RAMP_DIR[v]);
         else if (v === 8 || v === 2) this.boxes.add(`${r},${c}`);
-        else if (v === 9 || v === 10) this.player = [r, c];
+        else if (v === 9 || v === 10) { this.player = [r, c]; }
+        // Codes 11/12: player standing on a box (from Python env or obsFromGame)
+        else if (v === 11 || v === 12) { this.player = [r, c]; this.boxes.add(`${r},${c}`); }
       }
       this.terrain.push(trow);
     }

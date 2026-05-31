@@ -44,10 +44,11 @@ function obsFromGame(game, baseObs) {
         row.push(3);
       } else if (game.ramps.has(k)) {
         row.push(DIR_RAMP_MAP[game.ramps.get(k)]);
+      } else if (game.player[0] === r && game.player[1] === c) {
+        // Player wins; encode 11/12 if also standing on a box
+        row.push(game.boxes.has(k) ? (t === "high" ? 12 : 11) : (t === "high" ? 10 : 9));
       } else if (game.boxes.has(k)) {
         row.push(t === "high" ? 2 : 8);
-      } else if (game.player[0] === r && game.player[1] === c) {
-        row.push(t === "high" ? 10 : 9);
       } else {
         row.push(t === "high" ? 1 : 0);
       }
@@ -125,6 +126,34 @@ let episodes     = [];     // [{id, seed, won, steps:[frame…]}]
 let epIndex      = 0;
 let stepIndex    = 0;
 
+// ── auto-play state ────────────────────────────────────────────────────────
+let replayPlaying = false;
+let replayTimer   = null;
+let replaySpeed   = 2;
+
+function replayInterval() { return 600 / replaySpeed; }
+
+function startAutoPlay() {
+  replayPlaying = true;
+  replayPlayBtn.textContent = "⏸ Pause replay";
+  tickAutoPlay();
+}
+
+function stopAutoPlay() {
+  replayPlaying = false;
+  clearTimeout(replayTimer);
+  replayPlayBtn.textContent = "▶ Auto-play";
+}
+
+function tickAutoPlay() {
+  clearTimeout(replayTimer);
+  if (!replayPlaying) return;
+  const ep = episodes[epIndex];
+  if (!ep || stepIndex >= ep.steps.length - 1) { stopAutoPlay(); return; }
+  stepFwd();
+  replayTimer = setTimeout(tickAutoPlay, replayInterval());
+}
+
 // ── DOM refs ───────────────────────────────────────────────────────────────
 const replayBoard   = document.getElementById("replayBoard");
 const replayStatus  = document.getElementById("replayStatus");
@@ -135,6 +164,7 @@ const replayThink   = document.getElementById("replayThink");
 const replayInfo    = document.getElementById("replayInfo");
 const replayPrev    = document.getElementById("replayPrev");
 const replayNext    = document.getElementById("replayNext");
+const replayPlayBtn = document.getElementById("replayPlayBtn");
 
 // ── load ───────────────────────────────────────────────────────────────────
 document.getElementById("replayFile").addEventListener("change", (e) => {
@@ -181,6 +211,7 @@ function buildEpisodes() {
 
 // ── navigation ─────────────────────────────────────────────────────────────
 replayEpSel.addEventListener("change", (e) => {
+  stopAutoPlay();
   epIndex = Number(e.target.value);
   stepIndex = 0;
   renderReplay();
@@ -195,8 +226,20 @@ replayEpSel.addEventListener("keydown", (e) => {
     replayEpSel.value = String(epIndex);
   }
 });
-replayPrev.addEventListener("click", () => { stepBack(); replayPrev.focus(); });
-replayNext.addEventListener("click", () => { stepFwd();  replayNext.focus(); });
+replayPrev.addEventListener("click", () => { stopAutoPlay(); stepBack(); replayPrev.focus(); });
+replayNext.addEventListener("click", () => { stopAutoPlay(); stepFwd();  replayNext.focus(); });
+replayPlayBtn.addEventListener("click", () => {
+  if (!episodes.length) return;
+  if (replayPlaying) { stopAutoPlay(); return; }
+  // If at the end of an episode, restart from the beginning
+  const ep = episodes[epIndex];
+  if (ep && stepIndex >= ep.steps.length - 1) { stepIndex = 0; renderReplay(); }
+  startAutoPlay();
+});
+document.getElementById("replaySpeed").addEventListener("input", (e) => {
+  replaySpeed = Number(e.target.value);
+  document.getElementById("replaySpeedVal").textContent = `${replaySpeed}x`;
+});
 document.addEventListener("keydown", (e) => {
   if (!document.getElementById("replayPane").classList.contains("active")) return;
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -228,7 +271,48 @@ function renderReplay() {
   replayPrev.disabled = stepIndex === 0;
   replayNext.disabled = stepIndex === total - 1;
 
-  drawGrid(frame.obs);
+  // Render in the main 2D/3D viewer
+  const obs = frame.obs || {};
+  if (!window.appRenderFrame) {
+    replayStatus.textContent = "Viewer not ready — reload the page.";
+    replayStatus.className = "status fail";
+    return;
+  }
+  if (!obs.grid) {
+    replayStatus.textContent = "No grid data for this frame.";
+    replayStatus.className = "status fail";
+    return;
+  }
+  const maxSteps = (obs.steps_used || 0) + (obs.steps_remaining || 100);
+  const tempGame = new Sokoban({
+    name: `Replay seed ${ep.seed}`,
+    grid: obs.grid,
+    goal: obs.goal,
+    max_steps: maxSteps,
+  });
+  if (!tempGame.player) {
+    replayStatus.textContent = "No player found in frame grid.";
+    replayStatus.className = "status fail";
+    return;
+  }
+  let hudMsg, hudCls = "hud";
+  if (frame.terminated) {
+    hudMsg = `✔ Replay: seed ${ep.seed} solved in ${obs.steps_used} steps`;
+    hudCls = "hud win";
+  } else if (frame.truncated) {
+    hudMsg = `✗ Replay: seed ${ep.seed} — out of steps`;
+    hudCls = "hud fail";
+  } else {
+    hudMsg = `Replay: seed ${ep.seed} — step ${obs.steps_used ?? "?"}/${maxSteps}`;
+  }
+  try {
+    window.appRenderFrame(tempGame, hudMsg, hudCls);
+  } catch (e) {
+    console.error("appRenderFrame error:", e);
+    replayStatus.textContent = `Render error: ${e.message}`;
+    replayStatus.className = "status fail";
+    return;
+  }
 
   // Action line
   if (frame.action) {
@@ -247,7 +331,6 @@ function renderReplay() {
   replayThink.value = frame.reasoning || "(no reasoning)";
 
   // Info bar
-  const obs = frame.obs || {};
   replayInfo.textContent =
     `env step: ${obs.steps_used ?? "–"}  |  steps left: ${obs.steps_remaining ?? "–"}` +
     (frame.isLLMStart ? "  |  ← new LLM call" : "");

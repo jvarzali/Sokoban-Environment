@@ -14,7 +14,7 @@
   html, body { margin: 0; height: 100%; }
   body {
     background: var(--bg); color: var(--ink); font-family: "Segoe UI", system-ui, sans-serif;
-    display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh;
+    display: grid; grid-template-rows: auto auto 1fr auto auto; height: 100vh; overflow: hidden;
   }
   header { padding: 12px 16px 2px; }
   header h1 { margin: 0; font-size: 19px; }
@@ -77,6 +77,35 @@
     border: 1px solid #34465a; border-radius: 8px; padding: 7px 10px; font-family: ui-monospace, monospace; font-size: 13px;
   }
   .hint { color: var(--muted); font-size: 12px; }
+
+  /* ── Replay pane ───────────────────────────────────────────── */
+  .pane { padding: 8px 16px; background: var(--panel); border-top: 1px solid #34465a;
+          overflow-y: auto; min-height: 0; max-height: 160px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .status { padding: 5px 10px; border-radius: 6px; background: #1a232e; font-size: 13px; margin-bottom: 8px; }
+  .status.win  { background: #1f7a4d; }
+  .status.fail { background: #8a2f2f; }
+  .legend { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  #replayBoard { display: grid; gap: 2px; margin: 10px 0; }
+  #replayThink {
+    width: 100%; height: 52px; background: var(--bg); color: var(--ink);
+    border: 1px solid #34465a; border-radius: 8px; padding: 7px 10px;
+    font-family: ui-monospace, monospace; font-size: 12px; resize: vertical; margin: 6px 0;
+  }
+  #replayInfo   { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  #replayAction { margin: 6px 0; font-size: 13px; }
+  /* Replay board tiles */
+  .tile { display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+  .tile.wall { background: var(--wall); }
+  .tile.low  { background: var(--low); box-shadow: inset 0 0 0 1px rgba(0,0,0,.13); }
+  .tile.high { background: var(--high); box-shadow: inset 0 3px 0 rgba(255,255,255,.15), inset 0 0 0 1px rgba(0,0,0,.2); }
+  .tile.goal { outline: 2px dashed var(--accent); outline-offset: -3px; }
+  .tile .ramp { color: #1a2330; font-weight: 800; }
+  .tile .box  { color: var(--box); }
+  .tile .box.onhigh { color: #5e3a1b; }
+  .tile .player      { color: var(--player); }
+  .tile .player.phigh { color: #7fb0ff; }
+  .tile .goalring    { color: var(--accent); }
 </style>
 <script type="importmap">
 {
@@ -132,10 +161,13 @@
       <span id="replayStep" style="color:var(--muted);font-size:13px"></span>
     </div>
     <div id="replayStatus" class="status"></div>
-    <div id="replayBoard"></div>
+    <div id="replayBoard" style="display:none"></div>
     <div class="row">
+      <button id="replayPlayBtn">▶ Auto-play</button>
       <button id="replayPrev">◀ Prev</button>
       <button id="replayNext">Next ▶</button>
+      <label class="hint">speed <input id="replaySpeed" type="range" min="0.5" max="8" step="0.5" value="2" style="width:80px" /></label>
+      <span id="replaySpeedVal" class="hint">2x</span>
     </div>
     <div id="replayAction"></div>
     <textarea id="replayThink" readonly placeholder="Agent reasoning will appear here…"></textarea>
@@ -147,5 +179,6 @@
   <script src="maps.js"></script>
   <script src="game.js"></script>
   <script type="module" src="app.js"></script>
+  <script src="replay.js"></script>
 </body>
 </html>

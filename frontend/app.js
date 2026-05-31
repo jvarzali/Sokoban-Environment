@@ -206,6 +206,17 @@ function init() {
     if (view3d) view3d.resize();
   });
 
+  // Expose before loadMap so replay.js can call it as soon as the page loads.
+  window.appRenderFrame = (game, hudMsg, hudCls) => {
+    view2d.build(game);
+    if (view3d) view3d.build(game);
+    const high = game.terr(game.player) === "high";
+    elevBadge.textContent = high ? "high" : "low";
+    elevBadge.className = high ? "badge high" : "badge low";
+    hud.textContent = hudMsg ?? game.name;
+    hud.className = hudCls ?? "hud";
+  };
+
   setMode("2d");
   loadMap(0);
 }
