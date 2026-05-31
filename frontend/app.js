@@ -29,7 +29,7 @@ function loadMap(i) {
   engine = new Sokoban(MAPS[mapIndex]);
   history = [];
   $("mapSelect").value = String(mapIndex);
-  view2d.render(engine);
+  view2d.build(engine);
   if (view3d) view3d.build(engine);
   updateHud(null);
 }
@@ -40,7 +40,7 @@ function doMove(dir, animated) {
   const ok = engine.move(dir);
   if (!ok) { if (!playing) flash(); return false; }
   history.push(before);
-  view2d.render(engine);
+  if (animated) view2d.animate(before); else view2d.build(engine);
   if (view3d) { if (animated) view3d.animate(before); else view3d.build(engine); }
   updateHud(null);
   if (engine.won) stopPlayback();
@@ -51,7 +51,7 @@ function undo() {
   stopPlayback();
   if (!history.length) return;
   engine.restore(history.pop());
-  view2d.render(engine);
+  view2d.build(engine);
   if (view3d) view3d.build(engine);
   updateHud(null);
 }
@@ -94,7 +94,7 @@ function setMode(m) {
     b.classList.toggle("active", b.dataset.mode === m));
   // views need a re-measure once their panel is visible
   requestAnimationFrame(() => {
-    view2d.render(engine);
+    view2d.build(engine);
     if (view3d) view3d.resize();
   });
 }
@@ -169,7 +169,9 @@ function init() {
   $("speed").addEventListener("input", (e) => {
     speed = Number(e.target.value);
     $("speedVal").textContent = `${speed}x`;
-    if (view3d) view3d.moveDur = Math.min(0.32, (interval() * 0.9) / 1000);
+    const dur = Math.min(0.32, (interval() * 0.9) / 1000);
+    view2d.moveDur = dur;
+    if (view3d) view3d.moveDur = dur;
   });
   $("playTraj").addEventListener("click", () => {
     const raw = $("traj").value.trim();
@@ -190,7 +192,7 @@ function init() {
     if (dir) { e.preventDefault(); if (!playing) doMove(dir, true); }
   });
   window.addEventListener("resize", () => {
-    view2d.render(engine);
+    view2d.build(engine);
     if (view3d) view3d.resize();
   });
 

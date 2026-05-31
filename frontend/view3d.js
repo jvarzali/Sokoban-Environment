@@ -10,6 +10,7 @@ const COL = {
   player: 0x2f6fed, playerHigh: 0x7fb0ff, ramp: 0x6b7785, goal: 0xffd166, bg: 0x1b2430,
 };
 const LOW_TOP = 0, HIGH_TOP = 1.0;
+const STEP = HIGH_TOP;   // world height of one elevation step (low -> high, or a box)
 const RAMP_ANGLE = { E: 0, N: Math.PI / 2, W: Math.PI, S: -Math.PI / 2 };
 
 export class View3D {
@@ -55,7 +56,9 @@ export class View3D {
     // shared geometry / materials
     this.geo = {
       box: new THREE.BoxGeometry(1, 1, 1),
-      cargo: new THREE.BoxGeometry(0.62, 0.6, 0.62),
+      // a box is one full step tall (= one elevation level) and nearly fills the
+      // cell, so its top is a surface the player can stand on.
+      cargo: new THREE.BoxGeometry(0.9, STEP, 0.9),
       player: new THREE.SphereGeometry(0.28, 24, 18),
       goal: new THREE.TorusGeometry(0.34, 0.05, 12, 28),
       ramp: makeRampGeo(),
@@ -63,15 +66,10 @@ export class View3D {
     this.mat = {
       low: new THREE.MeshStandardMaterial({ color: COL.low, roughness: 0.95 }),
       high: new THREE.MeshStandardMaterial({ color: COL.high, roughness: 0.9 }),
-      // walls: see-through so they never block the view, with a faint wire outline
-      // so you can still tell an uncrossable block is there.
-      wall: new THREE.MeshStandardMaterial({ color: 0x8aa0b8, roughness: 1.0, transparent: true, opacity: 0.05, depthWrite: false }),
-      wallEdge: new THREE.LineBasicMaterial({ color: 0x9fb2c5, transparent: true, opacity: 0.28 }),
       box: new THREE.MeshStandardMaterial({ color: COL.box, roughness: 0.8 }),
       ramp: new THREE.MeshStandardMaterial({ color: COL.ramp, roughness: 0.7, metalness: 0.1 }),
       goal: new THREE.MeshStandardMaterial({ color: COL.goal, emissive: COL.goal, emissiveIntensity: 0.6 }),
     };
-    this.edgesGeo = new THREE.EdgesGeometry(this.geo.box);
 
     this._last = performance.now();
     this._loop = this._loop.bind(this);
@@ -79,10 +77,13 @@ export class View3D {
   }
 
   // ---- coordinate helpers ----
-  _topY(terr) { return terr === "high" ? HIGH_TOP : LOW_TOP; }
+  _topY(terr) { return terr === "high" ? HIGH_TOP : LOW_TOP; }      // terrain surface
+  _surfaceY(cell) { return this.engine.stand(cell) * 0.5 * STEP; }  // standable surface (incl. box top)
   _xz(cell) { return [cell[1] + this.offX, cell[0] + this.offZ]; }
-  _playerW(cell) { const [x, z] = this._xz(cell); return new THREE.Vector3(x, this._topY(this.engine.terr(cell)) + 0.28, z); }
-  _boxW(cell) { const [x, z] = this._xz(cell); return new THREE.Vector3(x, this._topY(this.engine.terr(cell)) + 0.31, z); }
+  // player sits on whatever surface its cell offers (terrain, or a box top)
+  _playerW(cell) { const [x, z] = this._xz(cell); return new THREE.Vector3(x, this._surfaceY(cell) + 0.28, z); }
+  // box rests on the terrain; its body is one step tall, so its center is half a step up
+  _boxW(cell) { const [x, z] = this._xz(cell); return new THREE.Vector3(x, this._topY(this.engine.terr(cell)) + STEP / 2, z); }
   _rampW(cell) { const [x, z] = this._xz(cell); return new THREE.Vector3(x, 0, z); }
 
   // ---- (re)build the whole scene from an engine state ----
@@ -105,15 +106,7 @@ export class View3D {
         const [x, z] = this._xz(cell);
         const inb = engine.inb(cell);
         const terr = engine.terr(cell);
-        if (!inb || terr === "wall") {
-          // clear block + faint outline; no shadow so it stays unobtrusive
-          const slab = new THREE.Mesh(this.geo.box, this.mat.wall);
-          slab.scale.set(0.98, 1.2, 0.98);
-          slab.position.set(x, 0.0, z);
-          slab.add(new THREE.LineSegments(this.edgesGeo, this.mat.wallEdge));
-          this.boardGroup.add(slab);
-          continue;
-        }
+        if (!inb || terr === "wall") continue;   // impassable cells render blank
         let mat, h, cy;
         if (terr === "high") { mat = this.mat.high; h = 1.5; cy = HIGH_TOP - 0.75; }
         else { mat = this.mat.low; h = 0.5; cy = LOW_TOP - 0.25; }
@@ -184,8 +177,8 @@ export class View3D {
   }
 
   _tintPlayer() {
-    const high = this.engine.terr(this.engine.player) === "high";
-    this.playerMesh.material.color.setHex(high ? COL.playerHigh : COL.player);
+    const elevated = this.engine.stand(this.engine.player) >= 2;   // on high ground or a box
+    this.playerMesh.material.color.setHex(elevated ? COL.playerHigh : COL.player);
   }
 
   // ---- animate from a pre-move snapshot to the engine's current state ----

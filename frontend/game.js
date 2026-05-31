@@ -44,6 +44,14 @@ class Sokoban {
   occ(x) { const k = this.key(x); return this.boxes.has(k) || this.ramps.has(k); }
   add(x, d) { return [x[0] + d[0], x[1] + d[1]]; }
 
+  // Elevation of the standable surface at x (terrain, +2 if a box sits there
+  // since a box is one step tall). null for walls.
+  stand(x) {
+    const t = this.terr(x);
+    if (t === "wall") return null;
+    return ELEV[t] + (this.boxes.has(this.key(x)) ? 2 : 0);
+  }
+
   // Returns true if the move changed state (a "valid" step), else false.
   move(dir) {
     if (this.won) return false;
@@ -59,11 +67,20 @@ class Sokoban {
     const p = this.player;
     const t = this.add(p, d);
     if (this.terr(t) === "wall") return false;
+    const h = this.stand(p);                                  // player's current surface
     if (this.ramps.has(this.key(t))) return this._ramp(p, t, dir, d);
-    if (this.boxes.has(this.key(t))) return this._push(p, t, d);
-    const dh = ELEV[this.terr(t)] - ELEV[this.terr(p)];
-    if (dh <= 0) { this.player = t; return true; }   // flat or descend
-    return false;                                      // cliff
+    if (this.boxes.has(this.key(t))) return this._enterBox(p, t, d, h);
+    if (ELEV[this.terr(t)] <= h) { this.player = t; return true; }   // flat or descend
+    return false;                                             // cliff (need a ramp)
+  }
+
+  // Step onto a box from at/above its top; from its base level push it instead.
+  // You can never climb up onto a box.
+  _enterBox(p, t, d, h) {
+    const boxBase = ELEV[this.terr(t)];
+    if (h >= boxBase + 2) { this.player = t; return true; }   // step onto the box top
+    if (h === boxBase) return this._push(p, t, d, h);         // level -> push
+    return false;                                             // box base is up a cliff
   }
 
   _ramp(p, t, dir, d) {
@@ -80,11 +97,11 @@ class Sokoban {
     return false;
   }
 
-  _push(p, t, d) {
+  _push(p, t, d, h) {
     const c = this.add(t, d);
     if (this.terr(c) === "wall" || this.occ(c)) return false;
     if (ELEV[this.terr(c)] - ELEV[this.terr(t)] > 0) return false;  // no uphill
-    if (ELEV[this.terr(t)] - ELEV[this.terr(p)] > 0) return false;  // can't climb to push
+    if (ELEV[this.terr(t)] - h > 0) return false;                   // can't climb to push
     this.boxes.delete(this.key(t));
     this.boxes.add(this.key(c));
     this.player = t;

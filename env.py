@@ -107,21 +107,29 @@ class SokobanEnv(BaseEnv):
     def _occ(self, x):  return x in self.boxes or x in self.ramps
     def _step(self, x, d): return (x[0] + d[0], x[1] + d[1])
 
+    def _stand(self, x):
+        """Elevation of the standable surface at x (terrain, +2 if a box sits
+        there since a box is one step tall). None for walls."""
+        terr = self._terr(x)
+        if terr == "wall":
+            return None
+        return ELEV[terr] + (2 if x in self.boxes else 0)
+
     # --- movement ---
     def _try_move(self, direction):
         d, p = DELTA[direction], self.player
         t = self._step(p, d)
         if self._terr(t) == "wall":
             return False
+        h = self._stand(p)                                   # player's current surface
         if t in self.ramps:
             return self._ramp(p, t, direction, d)
         if t in self.boxes:
-            return self._push_box(p, t, d)
-        dh = ELEV[self._terr(t)] - ELEV[self._terr(p)]       # blank target
-        if dh <= 0:                                           # flat or descend
+            return self._enter_box(p, t, d, h)
+        if ELEV[self._terr(t)] <= h:                         # blank target: flat or descend
             self.player = t
             return True
-        return False                                         # cliff (low->high)
+        return False                                         # cliff (need a ramp)
 
     def _ramp(self, p, t, direction, d):
         up = self.ramps[t]
@@ -139,13 +147,25 @@ class SokobanEnv(BaseEnv):
             return True
         return False
 
-    def _push_box(self, p, t, d):
+    def _enter_box(self, p, t, d, h):
+        """Move onto a box's cell. A box top sits one step above its terrain;
+        you step onto it from a surface at/above that top, but from the box's
+        base level you push it instead. You can never climb up onto a box."""
+        box_base = ELEV[self._terr(t)]
+        if h >= box_base + 2:                                # step onto the box top
+            self.player = t
+            return True
+        if h == box_base:                                    # level with its base -> push
+            return self._push_box(p, t, d, h)
+        return False                                         # box base is up a cliff
+
+    def _push_box(self, p, t, d, h):
         c = self._step(t, d)                                 # box destination
         if self._terr(c) == "wall" or self._occ(c):
             return False
         if ELEV[self._terr(c)] - ELEV[self._terr(t)] > 0:    # no pushing uphill
             return False
-        if ELEV[self._terr(t)] - ELEV[self._terr(p)] > 0:    # player can't climb to push
+        if ELEV[self._terr(t)] - h > 0:                      # player can't climb to push
             return False
         self.boxes.discard(t)
         self.boxes.add(c)                                    # flat slide or fall-off
@@ -160,12 +180,14 @@ class SokobanEnv(BaseEnv):
                 cell, terr = (r, c), self.terrain[r][c]
                 if   terr == "wall":      row.append(3)
                 elif cell in self.ramps:  row.append(DIR_RAMP[self.ramps[cell]])
+                elif cell == self.player:                    # player wins over a box it stands on
+                    if cell in self.boxes:   row.append(11 if terr == "low" else 12)
+                    else:                    row.append(10 if terr == "high" else 9)
                 elif cell in self.boxes:  row.append(2 if terr == "high" else 8)
-                elif cell == self.player: row.append(10 if terr == "high" else 9)
                 else:                     row.append(1 if terr == "high" else 0)
             grid.append(row)
         return {"grid": grid, "player": list(self.player),
-                "player_elevation": ELEV[self._terr(self.player)],
+                "player_elevation": self._stand(self.player),
                 "goal": list(self.goal),
                 "steps_used": self.steps,
                 "steps_remaining": self.max_steps - self.steps}
