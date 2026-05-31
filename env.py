@@ -9,12 +9,14 @@
 import json
 import glob
 import os
+import re
 
 from src.env_sdk import BaseEnv, StepResult
 
 DELTA    = {"N": (-1, 0), "S": (1, 0), "E": (0, 1), "W": (0, -1)}
 OPP      = {"N": "S", "S": "N", "E": "W", "W": "E"}
-ALIAS    = {"up": "N", "down": "S", "left": "W", "right": "E"}
+ALIAS    = {"up": "N", "down": "S", "left": "W", "right": "E",
+            "north": "N", "south": "S", "east": "E", "west": "W"}
 RAMP_DIR = {4: "N", 5: "E", 6: "S", 7: "W"}      # code -> uphill direction
 DIR_RAMP = {v: k for k, v in RAMP_DIR.items()}
 ELEV     = {"low": 0, "high": 2}
@@ -32,6 +34,25 @@ def load_maps():
 
 
 MAPS = load_maps()
+
+
+_ACTION_RE = re.compile(
+    r'\b(north|south|east|west|up|down|left|right|[nsew])\b', re.IGNORECASE
+)
+
+
+def _parse_action(raw: str) -> str:
+    """Extract the first direction token from a free-form agent response."""
+    token = raw.strip()
+    # Fast path: exact single token
+    direct = ALIAS.get(token.lower(), token.upper())
+    if direct in DELTA:
+        return direct
+    # Scan for the first direction word in a verbose response
+    m = _ACTION_RE.search(token)
+    if m:
+        return ALIAS.get(m.group().lower(), m.group().upper())
+    return token.upper()  # will be flagged invalid
 
 
 class SokobanEnv(BaseEnv):
@@ -64,7 +85,7 @@ class SokobanEnv(BaseEnv):
         return self._obs()
 
     def step(self, action):
-        a = ALIAS.get(action.strip().lower(), action.strip().upper())
+        a = _parse_action(action)
         invalid = a not in DELTA
         if not invalid:
             invalid = not self._try_move(a)
