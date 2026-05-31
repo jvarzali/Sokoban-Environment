@@ -1,4 +1,4 @@
-# Mountain Sokoban
+# Sokoban
 
 A top-down Sokoban over a **two-height grid**. Every cell is terrain (low or
 high), a wall, a ramp, a box, or the player. You walk square to square
@@ -7,7 +7,7 @@ high), a wall, a ramp, a box, or the player. You walk square to square
 be shoved off ledges) — or **stand on top of a box** to cross at the higher
 level — to clear a path and reach the **goal** cell.
 
-Full rule spec: [`mountain-sokoban-plan.md`](mountain-sokoban-plan.md).
+Full rule spec: [`sokoban-plan.md`](sokoban-plan.md).
 
 ## Cell codes
 

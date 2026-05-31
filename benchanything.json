@@ -1,6 +1,6 @@
 {
   "adapter": "adapter.py",
-  "name": "Mountain Sokoban",
+  "name": "Sokoban",
   "description": "Top-down two-height maze. Cross ramps (locked orientation) to climb the one height step; drop down ledges for free. Push boxes (incl. off ledges), or stand on top of a box (a box is one step tall) to cross at the higher level, though you can never climb up onto a box from below. Clear a path and reach the goal cell.",
   "binding_vow": {
     "id": "mountain-sokoban-v1",

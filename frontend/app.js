@@ -25,6 +25,7 @@ let queue = [], playing = false, speed = 1, timer = null;
 // ---- core ------------------------------------------------------------------
 function loadMap(i) {
   stopPlayback();
+  queue = [];
   mapIndex = (i + MAPS.length) % MAPS.length;
   engine = new Sokoban(MAPS[mapIndex]);
   history = [];
@@ -32,6 +33,17 @@ function loadMap(i) {
   view2d.build(engine);
   if (view3d) view3d.build(engine);
   updateHud(null);
+}
+
+// Parse the trajectory box (JSON array or whitespace/comma separated) into a
+// list of N/S/E/W actions, or null if there's nothing valid.
+function parseTrajectory() {
+  const raw = $("traj").value.trim();
+  if (!raw) return null;
+  let acts;
+  try { acts = JSON.parse(raw); } catch { acts = raw.split(/[\s,]+/); }
+  acts = acts.map((a) => String(a).trim().toUpperCase()).map((a) => ALIAS[a] || a).filter((a) => DIRS.includes(a));
+  return acts.length ? acts : null;
 }
 
 function doMove(dir, animated) {
@@ -146,24 +158,26 @@ function init() {
   document.querySelectorAll("[data-mode]").forEach((b) =>
     b.addEventListener("click", () => setMode(b.dataset.mode)));
 
-  $("solve").addEventListener("click", () => {
-    loadMap(mapIndex);
-    const path = Sokoban.solve(MAPS[mapIndex]);
-    if (path && path.length) startPlayback(path); else flash("no solution found");
-  });
+  // Play / Pause: resume an in-progress replay, else load the trajectory box
+  // (a pasted run / file) and play it from the start of the map.
   playBtn.addEventListener("click", () => {
     if (playing) { stopPlayback(); return; }
-    if (engine.won || engine.steps >= engine.maxSteps) loadMap(mapIndex);
     if (!queue.length) {
-      const path = Sokoban.solve(MAPS[mapIndex]);
-      if (!path || !path.length) { flash("no solution found"); return; }
-      queue = path;
+      const acts = parseTrajectory();
+      if (!acts) { flash("paste a trajectory to play"); return; }
+      loadMap(mapIndex);          // replay from the map's initial state
+      queue = acts;
     }
     startPlayback();
   });
   $("step").addEventListener("click", () => {
     stopPlayback();
-    if (!queue.length) { const p = Sokoban.solve(MAPS[mapIndex]); queue = p || []; }
+    if (!queue.length) {
+      const acts = parseTrajectory();
+      if (!acts) { flash("paste a trajectory to step through"); return; }
+      loadMap(mapIndex);
+      queue = acts;
+    }
     if (queue.length) doMove(queue.shift(), true);
   });
   $("speed").addEventListener("input", (e) => {
@@ -174,12 +188,8 @@ function init() {
     if (view3d) view3d.moveDur = dur;
   });
   $("playTraj").addEventListener("click", () => {
-    const raw = $("traj").value.trim();
-    if (!raw) return;
-    let acts;
-    try { acts = JSON.parse(raw); } catch { acts = raw.split(/[\s,]+/); }
-    acts = acts.map((a) => String(a).trim().toUpperCase()).map((a) => ALIAS[a] || a).filter((a) => DIRS.includes(a));
-    if (!acts.length) { flash("no valid moves in trajectory"); return; }
+    const acts = parseTrajectory();
+    if (!acts) { flash("no valid moves in trajectory"); return; }
     loadMap(mapIndex);
     startPlayback(acts);
   });

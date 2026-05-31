@@ -1,4 +1,4 @@
-"""BFS solvability checker for Mountain Sokoban maps.
+"""BFS solvability checker for Sokoban maps.
 
 For each map it does a breadth-first search over the full game state
 `(player, frozenset(boxes), frozenset(ramps.items()))`, reusing the live engine

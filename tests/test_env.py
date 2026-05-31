@@ -1,4 +1,4 @@
-"""Unit tests for the Mountain Sokoban engine (build-order step 1).
+"""Unit tests for the Sokoban engine (build-order step 1).
 
 Covers: flat move, descend off ledge, blocked cliff, ramp climb (aligned),
 ramp push (perpendicular), ramp descend (along axis), box flat-slide,

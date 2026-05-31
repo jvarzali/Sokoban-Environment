@@ -1,4 +1,4 @@
-You are playing Mountain Sokoban, a puzzle game on a 2D grid with two terrain heights.
+You are playing Sokoban, a puzzle game on a 2D grid with two terrain heights.
 
 GRID CELL CODES:
   0 = empty low ground        1 = empty high ground
@@ -7,29 +7,46 @@ GRID CELL CODES:
   6 = ramp facing South       7 = ramp facing West
   8 = box on low ground       9 = player on low ground
   10 = player on high ground
+  11 = player standing on a box (box on low ground)
+  12 = player standing on a box (box on high ground)
 
 OBSERVATION FIELDS:
   grid: 2D array of cell codes (row 0 = top)
   player: [row, col] of your position
-  player_elevation: 0=low, 2=high
+  player_elevation: 0 = low, 2 = high, 4 = standing on a box that sits on high ground
   goal: [row, col] — reach this cell to win
   steps_remaining: steps left before the episode ends
 
+HEIGHTS:
+  Low ground = 0, high ground = 2. A box is one step (2) tall, so its top is one
+  level above the ground it sits on. Your "standing height" is the terrain under
+  you plus 2 if you are on top of a box.
+
 MOVEMENT RULES:
   - You move one cell per turn: N (up), S (down), E (right), W (left)
-  - Flat moves and descents (high→low) are always free
-  - Climbing (low→high) requires a ramp: a ramp with code 4 lets you climb North,
-    5=East, 6=South, 7=West. Approach from the LOW side moving in the ramp's direction.
-    You land on the HIGH cell beyond the ramp — you never stop on the ramp itself.
-  - Entering a ramp from a perpendicular direction PUSHES it one cell in that direction
-    (only works if the destination is empty low ground)
-  - Entering a box pushes it one cell forward. Boxes can fall off ledges (high→low) but
-    cannot be pushed uphill. No chain pushes.
+  - Flat moves and descents (stepping to any surface at or below your standing
+    height) are always free.
+  - Climbing one step UP onto blank high ground is a cliff and is blocked unless a
+    ramp bridges it.
+  - Ramps: a ramp with code 4 lets you climb North, 5=East, 6=South, 7=West.
+    Approach from the LOW side moving in the ramp's direction; you land on the HIGH
+    cell beyond the ramp (you never stop on the ramp itself). Entering a ramp from a
+    perpendicular direction PUSHES it one cell that way (only onto empty low ground).
+  - Boxes:
+      * If your standing height is at or above the box's TOP, you STEP ONTO the box.
+        You can then walk across adjacent box tops and step off onto level/lower ground.
+      * If you are level with the box's BASE (beside it on the same ground), you PUSH
+        it one cell. A box can be pushed onto equal or lower empty ground (including
+        off a ledge), but never uphill and never into a wall, box, or ramp. No chains.
+      * You can NEVER climb up onto a box from below — ramps are the only way to gain
+        height.
   - Walls and out-of-bounds are impassable.
 
 STRATEGY:
   - Plan a path to the goal, accounting for elevation changes.
   - If the goal is on high ground, find or reposition a ramp to create a climbing path.
-  - Push boxes out of your way; a box can be pushed off a ledge to clear a high-ground path.
+  - Push boxes out of your way; a box can be pushed off a ledge to clear a path.
+  - Once you are at the right height, you can walk across the tops of boxes to bridge
+    gaps or cross at the higher level.
 
 OUTPUT: Reply with ONLY a single character: N, S, E, or W. Nothing else.

@@ -1,4 +1,4 @@
-// game.js - Mountain Sokoban engine (browser port of env.py).
+// game.js - Sokoban engine (browser port of env.py).
 // Pure rules, no UI. Mirrors env.py exactly so every client (2D, 3D, parity
 // test) shares one verified source of truth. Exposed as window.Sokoban in the
 // browser and module.exports under Node. Maps come from maps.js.
@@ -126,37 +126,9 @@ class Sokoban {
   }
 }
 
-// Shared BFS solver: returns the shortest action list to the goal, or null.
-Sokoban.solve = function solve(map) {
-  const stateKey = (g) => {
-    const boxes = [...g.boxes].sort().join("|");
-    const ramps = [...g.ramps.entries()].map(([k, v]) => `${k}:${v}`).sort().join("|");
-    return `${g.player[0]},${g.player[1]};${boxes};${ramps}`;
-  };
-  const s = new Sokoban(map);
-  if (s.player[0] === s.goal[0] && s.player[1] === s.goal[1]) return [];
-  const seen = new Set([stateKey(s)]);
-  let frontier = [{ snap: s.snapshot(), path: [] }];
-  const probe = new Sokoban(map);
-  for (let depth = 0; depth < 10000 && frontier.length; depth++) {
-    const next = [];
-    for (const node of frontier) {
-      for (const dir of ["N", "S", "E", "W"]) {
-        probe.restore(node.snap);
-        if (!probe.move(dir)) continue;
-        if (probe.player[0] === probe.goal[0] && probe.player[1] === probe.goal[1]) {
-          return [...node.path, dir];
-        }
-        const k = stateKey(probe);
-        if (seen.has(k)) continue;
-        seen.add(k);
-        next.push({ snap: probe.snapshot(), path: [...node.path, dir] });
-      }
-    }
-    frontier = next;
-  }
-  return null;
-};
+// No solver lives here: the app never solves a puzzle itself. Playback is driven
+// by externally supplied trajectories / run files. (The dev-only parity test has
+// its own BFS, and verify_maps.py covers solvability checks offline.)
 
 if (typeof window !== "undefined") window.Sokoban = Sokoban;
 if (typeof module !== "undefined" && module.exports) module.exports = { Sokoban };

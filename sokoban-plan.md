@@ -1,4 +1,4 @@
-# Mountain Sokoban — Mesocosm Environment Plan
+# Sokoban — Mesocosm Environment Plan
 
 A top-down Sokoban over a **two-height grid**. Every cell is one of: blank-low,
 blank-high, wall, ramp (4 locked orientations), box, or player. There is no
@@ -194,7 +194,7 @@ mountain-sokoban/
 
 ### env.py
 ```python
-# env.py — Mountain Sokoban
+# env.py — Sokoban
 import json, glob
 from src.env_sdk import BaseEnv, StepResult
 
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 ```json
 {
   "adapter": "adapter.py",
-  "name": "Mountain Sokoban",
+  "name": "Sokoban",
   "description": "Top-down two-height maze. Push ramps (locked orientation) to climb, push boxes (incl. off ledges) to clear a path, reach the goal cell.",
   "binding_vow": {
     "version": "1.0.0",
