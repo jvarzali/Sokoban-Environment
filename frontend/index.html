@@ -14,8 +14,40 @@
   html, body { margin: 0; height: 100%; }
   body {
     background: var(--bg); color: var(--ink); font-family: "Segoe UI", system-ui, sans-serif;
-    display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
   }
+  .tabs { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
+  .tab { background: var(--panel); color: var(--muted); border: 1px solid #34465a;
+         border-radius: 8px; padding: 6px 16px; font-size: 14px; cursor: pointer; }
+  .tab.active { color: var(--ink); border-color: var(--accent); }
+  .pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .pane.active { display: flex; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 4px 16px; }
+  .status { font-size: 14px; font-weight: 600; padding: 5px 12px; border-radius: 8px;
+            background: var(--panel); flex-shrink: 0; }
+  .status.win  { background: #1f7a4d; }
+  .status.fail { background: #8a2f2f; }
+  .legend { color: var(--muted); font-size: 12px; padding: 4px 16px; }
+  #replayBoard { display: grid; gap: 2px; padding: 8px; background: #0e141b;
+                 border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  #replayThink { width: 560px; max-width: 95vw; height: 100px; background: var(--panel);
+                 color: var(--muted); border: 1px solid #34465a; border-radius: 8px;
+                 padding: 8px; font-size: 12px; font-family: monospace; resize: vertical; }
+  #replayAction { font-size: 14px; padding: 0 16px; }
+  #replayInfo   { color: var(--muted); font-size: 12px; padding: 0 16px; }
+  #replayStep   { color: var(--muted); font-size: 13px; }
+  .tile { display: flex; align-items: center; justify-content: center; border-radius: 4px;
+          line-height: 1; user-select: none; }
+  .tile.low  { background: var(--low); }
+  .tile.high { background: var(--high); box-shadow: inset 0 3px 0 rgba(255,255,255,.18), inset 0 -4px 6px rgba(0,0,0,.35); }
+  .tile.wall { background: #131a22; }
+  .tile.goal { outline: 2px dashed var(--accent); outline-offset: -4px; }
+  .player      { color: var(--player); text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .player.phigh{ color: #7fb0ff; }
+  .box         { color: var(--box); }
+  .box.onhigh  { color: #4a2c12; }
+  .ramp        { color: #ddd; font-weight: 700; opacity: .9; }
+  .goalring    { color: var(--accent); }
   header { padding: 12px 16px 2px; }
   header h1 { margin: 0; font-size: 19px; }
   header small { color: var(--muted); font-size: 12.5px; }
@@ -35,7 +67,7 @@
   .spacer { flex: 1; }
 
   /* stage: 2D panel + 3D panel, layout driven by mode class */
-  .stage { min-height: 0; display: grid; gap: 10px; padding: 0 16px; }
+  .stage { min-height: 0; flex: 1; display: grid; gap: 10px; padding: 0 16px; }
   .stage.mode-2d { grid-template-columns: 1fr; }
   .stage.mode-3d { grid-template-columns: 1fr; }
   .stage.mode-split { grid-template-columns: 1fr 1fr; }
@@ -87,6 +119,12 @@
 </script>
 </head>
 <body>
+  <div class="tabs">
+    <button class="tab active" data-pane="playPane">▶ Play</button>
+    <button class="tab"        data-pane="replayPane">⏪ Replay</button>
+  </div>
+
+  <div id="playPane" class="pane active">
   <header>
     <h1>Mountain Sokoban</h1>
     <small>Move with arrow keys / WASD · climb ramps, push boxes (even off ledges) or stand on top of them, reach the goal · watch a solution play out</small>
@@ -123,6 +161,7 @@
     <button id="playTraj">Play trajectory</button>
     <span class="hint">3D needs WebGL; if it fails the 2D view still works.</span>
   </div>
+  </div><!-- end traj -->
   </div><!-- end playPane -->
 
   <!-- ── REPLAY PANE ──────────────────────────────────────────── -->
@@ -147,6 +186,17 @@
 
   <script src="maps.js"></script>
   <script src="game.js"></script>
+  <script src="replay.js"></script>
   <script type="module" src="app.js"></script>
+  <script>
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".pane").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.pane).classList.add("active");
+      });
+    });
+  </script>
 </body>
 </html>
