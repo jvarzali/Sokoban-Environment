@@ -1,0 +1,195 @@
+{
+  "tile_legend": {
+    "1": "first-floor walkable tile",
+    "2": "second-floor walkable tile",
+    "3": "box on first floor",
+    "4": "box on second floor",
+    "X": "wall / impassable (outer border auto-added)",
+    "p": "player start, first floor",
+    "P": "player start, second floor",
+    "f": "finish, first floor",
+    "F": "finish, second floor",
+    "w": "ramp facing up",
+    "d": "ramp facing right",
+    "s": "ramp facing down",
+    "a": "ramp facing left"
+  },
+  "notes": [
+    "Ramps are always on the first floor.",
+    "Every level is automatically surrounded by a border of X.",
+    "Ragged rows are padded with X to the width of the widest row.",
+    "Player start (p/P) renamed from s/S to avoid colliding with the down-ramp s."
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "basic movement",
+      "levels": [
+        {
+          "id": 1,
+          "grid": [
+            "XXXXXX",
+            "Xp11fX",
+            "XXXXXX"
+          ]
+        },
+        {
+          "id": 2,
+          "grid": [
+            "XXXXXXX",
+            "X11pXfX",
+            "X1XXX1X",
+            "X11111X",
+            "XXXXXXX"
+          ]
+        },
+        {
+          "id": 3,
+          "grid": [
+            "XXXXXXXXXX",
+            "X11111111X",
+            "X1p111111X",
+            "X11111111X",
+            "X11111111X",
+            "X11111111X",
+            "X11111f11X",
+            "X11111111X",
+            "XXXXXXXXXX"
+          ]
+        },
+        {
+          "id": 4,
+          "grid": [
+            "XXXXXXXXXX",
+            "X1111111XX",
+            "X1XX1XX1XX",
+            "XXp11XXf1X",
+            "XX1X1XXX1X",
+            "X11X11111X",
+            "XXXXXXXXXX"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "boxes",
+      "levels": [
+        {
+          "id": 1,
+          "grid": [
+            "XXXXXX",
+            "Xp131X",
+            "XXXfXX",
+            "XXXXXX"
+          ]
+        },
+        {
+          "id": 2,
+          "grid": [
+            "XXXXXX",
+            "XXX1XX",
+            "Xp13fX",
+            "X111XX",
+            "XXXXXX"
+          ]
+        },
+        {
+          "id": 3,
+          "grid": [
+            "XXXXX",
+            "X131X",
+            "XpXfX",
+            "X131X",
+            "XX11X",
+            "XXXXX"
+          ]
+        },
+        {
+          "id": 4,
+          "grid": [
+            "XXXXX",
+            "XX1XX",
+            "XX1fX",
+            "XX3XX",
+            "X131X",
+            "X111X",
+            "X1p1X",
+            "XXXXX"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ramps and elevation",
+      "levels": [
+        {
+          "id": 1,
+          "grid": [
+            "XXXXXX",
+            "X1111X",
+            "Xp1dFX",
+            "X1111X",
+            "XXXXXX"
+          ]
+        },
+        {
+          "id": 2,
+          "grid": [
+            "XXXXXXXX",
+            "X111111X",
+            "X111F11X",
+            "X1p11a1X",
+            "X111111X",
+            "XXXXXXXX"
+          ]
+        },
+        {
+          "id": 3,
+          "grid": [
+            "XXXXXXXX",
+            "XXXX23FX",
+            "XXXXwXXX",
+            "XXXX1XXX",
+            "Xpd21XXX",
+            "XXXXXXXX"
+          ]
+        },
+        {
+          "id": 4,
+          "grid": [
+            "XXXXXXXX",
+            "Xp1111XX",
+            "X11131XX",
+            "X111F1XX",
+            "X11XXXXX",
+            "X111d1XX",
+            "X11111XX",
+            "XXXXXXXX"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "challenge",
+      "levels": [
+        {
+          "id": 1,
+          "grid": [
+            "XXXXX",
+            "X111X",
+            "X1F1X",
+            "X111X",
+            "X141X",
+            "X221X",
+            "Xw1pX",
+            "X111X",
+            "XXXXX"
+          ]
+        }
+      ]
+    }
+  ]
+}
