@@ -114,6 +114,21 @@ python verify_maps.py
 python adapter.py --host 127.0.0.1 --port 8765
 ```
 
+### Mesocosm benchmark runs
+
+**Always pass `--max-tokens 1`** when running on the platform. Without it the
+LLM generates verbose reasoning containing direction words ("West-facing ramp",
+"approach from East"…), and the platform executes every direction token it finds
+as a separate `/step` call — one LLM call can consume 10+ env steps.
+
+```bash
+# local test run
+mesocosm run local --max-tokens 1 --model ollama/<model>
+
+# platform run
+mesocosm run create --max-tokens 1
+```
+
 ### HTTP protocol (local shim)
 
 | Method | Path | Body | Returns |

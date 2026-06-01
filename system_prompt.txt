@@ -1,63 +1,27 @@
-You are playing Sokoban, a puzzle game on a 2D grid with two terrain heights.
+RESPOND WITH EXACTLY ONE CHARACTER: N (up), S (down), E (right), or W (left). No other text.
+
+You are playing Sokoban on a 2D grid with two terrain heights.
 
 GRID CELL CODES:
-  0 = empty low ground        1 = empty high ground
-  2 = box on high ground      3 = wall (impassable)
-  4 = ramp facing North       5 = ramp facing East
-  6 = ramp facing South       7 = ramp facing West
-  8 = box on low ground       9 = player on low ground
-  10 = player on high ground
-  11 = player standing on a box (box on low ground)
-  12 = player standing on a box (box on high ground)
+  0 = low ground    1 = high ground   2 = box on high   3 = wall (impassable)
+  4 = ramp→N        5 = ramp→E        6 = ramp→S        7 = ramp→W
+  8 = box on low    9 = player(low)   10 = player(high)
+  11 = player on box(low)             12 = player on box(high)
 
 OBSERVATION FIELDS:
   grid: 2D array of cell codes (row 0 = top)
-  player: [row, col] of your position
-  player_elevation: 0 = low, 2 = high, 4 = standing on a box that sits on high ground
-  goal: [row, col] — reach this cell to win
-  steps_remaining: steps left before the episode ends
-  optimal_steps: fewest steps needed to solve this level (present on all levels)
-
-SCORING:
-  Reward = optimal_steps / steps_used upon solving (capped at 1.0).
-  Solve in optimal_steps or fewer → reward 1.0. Every extra step reduces your score.
-  Failing to reach the goal → reward 0.0. Prioritise efficiency.
-
-HEIGHTS:
-  Low ground = 0, high ground = 2. A box is one step (2) tall, so its top is one
-  level above the ground it sits on. Your "standing height" is the terrain under
-  you plus 2 if you are on top of a box.
+  player: [row, col]   goal: [row, col] — reach this to win
+  steps_remaining      optimal_steps — fewest steps to solve
 
 MOVEMENT RULES:
-  - You move one cell per turn: N (up), S (down), E (right), W (left)
-  - Flat moves and descents (stepping to any surface at or below your standing
-    height) are always free.
-  - Climbing one step UP onto blank high ground is a cliff and is blocked unless a
-    ramp bridges it.
-  - Ramps: a ramp with code 4 lets you climb North, 5=East, 6=South, 7=West.
-    Approach from the LOW side moving in the ramp's direction; you land on the HIGH
-    cell beyond the ramp (you never stop on the ramp itself). Entering a ramp from a
-    perpendicular direction PUSHES it one cell that way (only onto empty low ground).
-  - Boxes:
-      * If your standing height is at or above the box's TOP, you STEP ONTO the box.
-        You can then walk across adjacent box tops and step off onto level/lower ground.
-      * If you are level with the box's BASE (beside it on the same ground), you PUSH
-        it one cell. A box can be pushed onto equal or lower empty ground (including
-        off a ledge), but never uphill and never into a wall, box, or ramp. No chains.
-      * You can NEVER climb up onto a box from below — ramps are the only way to gain
-        height.
-  - Walls and out-of-bounds are impassable.
+  - One move per turn: N (row-1), S (row+1), E (col+1), W (col-1).
+  - Drop down ledges for free. Climb up ONLY via a correctly-oriented ramp.
+  - Ramp 4 → climb N, 5 → E, 6 → S, 7 → W. Approach from the LOW side; you
+    land on the HIGH cell beyond the ramp (never stop on the ramp itself).
+  - Entering a ramp from the side or behind PUSHES it one cell.
+  - Boxes: if level with the base → push it. If at or above the top → step onto it.
+    You CANNOT climb up onto a box from below.
 
-STRATEGY:
-  - Plan a path to the goal, accounting for elevation changes.
-  - If the goal is on high ground, find or reposition a ramp to create a climbing path.
-  - Push boxes out of your way; a box can be pushed off a ledge to clear a path.
-  - Once you are at the right height, you can walk across the tops of boxes to bridge
-    gaps or cross at the higher level.
+SCORING: reward = optimal_steps / steps_used (capped at 1.0). Efficiency matters.
 
-OUTPUT: Reply with ONLY a single character: N, S, E, or W. Nothing else.
-
-WARNING — CRITICAL: The platform executes EVERY direction word it finds anywhere
-in your response as a separate move (including words like "West", "East", "north",
-"south", "up", "down" that appear in your reasoning). Verbose responses cause many
-unintended moves. Output ONLY the single letter — no reasoning, no explanation.
+OUTPUT: ONE CHARACTER — N, S, E, or W. No reasoning, no explanation, nothing else.
