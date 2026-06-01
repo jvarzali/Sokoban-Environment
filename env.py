@@ -191,42 +191,66 @@ class SokobanEnv(BaseEnv):
                 elif cell in self.boxes:  row.append(2 if terr == "high" else 8)
                 else:                     row.append(1 if terr == "high" else 0)
             grid.append(row)
-        # ASCII map: makes spatial layout immediately readable for the agent.
-        # Symbols: # wall  . low  H high  @ player  G goal  b box-low  B box-high
-        #          ^ ramp-N  > ramp-E  v ramp-S  < ramp-W
+        # Build ASCII map.
+        # Symbols: # wall  . low ground  H high ground
+        #  @ player(low)  P player(high)  Q player-on-box
+        #  G goal(low — walk to it)  * goal(high — need ramp to reach)
+        #  b box(low)  B box(high)
+        #  ^ ramp climbs N  > ramp climbs E  v ramp climbs S  < ramp climbs W
         _SYM = {0:'.', 1:'H', 2:'B', 3:'#', 4:'^', 5:'>', 6:'v', 7:'<',
-                8:'b', 9:'@', 10:'@', 11:'@', 12:'@'}
+                8:'b', 9:'@', 10:'P', 11:'Q', 12:'Q'}
         gr, gc = self.goal
+        goal_on_high = self.terrain[gr][gc] == "high"
+        goal_ch = '*' if goal_on_high else 'G'
         ascii_rows = []
         for r, row in enumerate(grid):
             line = ""
             for c, v in enumerate(row):
                 if r == gr and c == gc and v not in (9, 10, 11, 12):
-                    line += "G"
+                    line += goal_ch
                 else:
                     line += _SYM.get(v, "?")
             ascii_rows.append(line)
 
-        # Plain-English description of key elements
+        # Explicit English description
         pr, pc = self.player
-        elev_name = {0: "low ground", 2: "high ground", 4: "top of a box"}.get(
-            self._stand(self.player), "unknown")
-        notes = [f"Player at [{pr},{pc}] on {elev_name}.",
-                 f"Goal at [{gr},{gc}]."]
-        for (r, c), d in self.ramps.items():
-            notes.append(f"Ramp at [{r},{c}] climbs {d} (approach from the opposite side).")
-        for (r, c) in self.boxes:
+        player_elev = self._stand(self.player)
+        elev_name = {0: "low ground", 2: "high ground", 4: "top of a box"}.get(player_elev, "unknown")
+        goal_elev_name = "high ground" if goal_on_high else "low ground"
+
+        notes = [f"Player (@) at row {pr}, col {pc} on {elev_name}."]
+        if goal_on_high:
+            notes.append(f"Goal (*) at row {gr}, col {gc} on HIGH ground — you cannot walk there directly, you must use a ramp to climb up.")
+        else:
+            notes.append(f"Goal (G) at row {gr}, col {gc} on low ground — walk there to win.")
+
+        _OPP_STEP = {"N": (1, 0), "S": (-1, 0), "E": (0, -1), "W": (0, 1)}
+        _LAND_STEP = {"N": (-1, 0), "S": (1, 0), "E": (0, 1), "W": (0, -1)}
+        for (r, c), d in sorted(self.ramps.items()):
+            sr, sc = r + _OPP_STEP[d][0], c + _OPP_STEP[d][1]
+            lr, lc = r + _LAND_STEP[d][0], c + _LAND_STEP[d][1]
+            notes.append(
+                f"Ramp ({_SYM[DIR_RAMP[d]]}) at [{r},{c}] climbs {d}: "
+                f"stand at [{sr},{sc}] and move {d} — you land on high ground at [{lr},{lc}].")
+
+        for (r, c) in sorted(self.boxes):
             t = "high" if self.terrain[r][c] == "high" else "low"
-            notes.append(f"Box at [{r},{c}] on {t} ground.")
+            notes.append(f"Box at [{r},{c}] on {t} ground (push it or stand on top of it).")
+
+        dr = gr - pr
+        dc = gc - pc
+        dir_hint = ("" if dr == 0 else (f"{abs(dr)} row{'s' if abs(dr)>1 else ''} {'south' if dr>0 else 'north'}"))
+        dir_hint += (" and " if dr != 0 and dc != 0 else "")
+        dir_hint += ("" if dc == 0 else (f"{abs(dc)} col{'s' if abs(dc)>1 else ''} {'east' if dc>0 else 'west'}"))
+        notes.append(f"Goal is {dir_hint} from you.")
 
         obs = {"ascii": "\n".join(ascii_rows),
                "description": " ".join(notes),
-               "grid": grid,
                "player": list(self.player),
                "player_elevation": self._stand(self.player),
                "goal": list(self.goal),
-               "steps_used": self.steps,
-               "steps_remaining": self.max_steps - self.steps}
+               "steps_remaining": self.max_steps - self.steps,
+               "grid": grid}
         if self.optimal_steps is not None:
             obs["optimal_steps"] = self.optimal_steps
         return obs

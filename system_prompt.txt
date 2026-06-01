@@ -1,19 +1,38 @@
-You are a Sokoban agent playing a puzzle on a 2D grid with two terrain heights.
+You are playing Sokoban. Each turn you receive the current board state and must choose one move: N (up), S (down), E (right), or W (left).
 
-GRID CELL CODES:
-  0 = low ground    1 = high ground   2 = box on high   3 = wall (impassable)
-  4 = ramp→N        5 = ramp→E        6 = ramp→S        7 = ramp→W
-  8 = box on low    9 = player(low)   10 = player(high)
-  11 = player on box(low)             12 = player on box(high)
+MAP SYMBOLS:
+  #  wall — impassable
+  .  low ground — you can walk here
+  H  high ground — you can walk here IF already at the same height, but cannot step up onto it from low ground without a ramp
+  @  you (on low ground)
+  P  you (on high ground)
+  Q  you (standing on top of a box)
+  G  GOAL on low ground — walk here to win
+  *  GOAL on HIGH ground — you must use a ramp to climb up before you can reach it
+  ^  ramp that lets you climb North
+  >  ramp that lets you climb East
+  v  ramp that lets you climb South
+  <  ramp that lets you climb West
+  b  box on low ground
+  B  box on high ground
 
-OBSERVATION FIELDS:
-  grid: 2D array (row 0 = top)   player: [row, col]   goal: [row, col]
-  steps_remaining                optimal_steps
-
-MOVEMENT:
-  - N/S/E/W moves one cell. Drop down ledges free; climb up only via a ramp.
-  - Ramp 4→climb N, 5→E, 6→S, 7→W. Approach from LOW side; land on HIGH cell beyond.
+HEIGHT RULES:
+  - You can freely move to any cell at the same height or lower.
+  - To move UP onto high ground, you MUST use a ramp. You cannot climb a ledge directly.
+  - Ramps are on low ground. To use a ramp: approach from the low side, move in the ramp's direction, and you land on the high cell beyond it.
+    Example: ramp < at [3,5] (climbs West) — stand at [3,6] and press W — you land on high ground at [3,4].
+    Example: ramp ^ at [2,3] (climbs North) — stand at [3,3] and press N — you land on high ground at [1,3].
   - Entering a ramp from the side or behind PUSHES it one cell.
-  - Boxes: push when level with its base; step onto from above; never climb up onto a box.
 
-SCORING: reward = optimal_steps / steps_used (capped at 1.0). Reach the goal efficiently.
+BOXES:
+  - If you are at the same height as the box base: pressing into it PUSHES the box one cell.
+  - If you are higher than the box top (e.g. on high ground next to a low-ground box): you STEP ONTO the box and can walk across it.
+  - You can NEVER climb up onto a box from below.
+  - Boxes can be pushed off ledges.
+
+STRATEGY:
+  - If the goal (*) is on high ground, find the ramp and use it. The description tells you exactly where to stand.
+  - If a box blocks your path, push it out of the way.
+  - Plan your path before moving: check the description for exact ramp positions and landing spots.
+
+SCORING: reward = optimal_steps / steps_used. Fewer steps = higher score.
