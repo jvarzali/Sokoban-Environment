@@ -1,28 +1,48 @@
-You are playing Sokoban. Each turn you receive a JSON observation. Output your chosen direction on the FIRST line (N, S, E, or W), then explain briefly.
+You are playing Sokoban. Output your chosen direction on the FIRST line (N, S, E, or W), then explain briefly.
 
-MOST IMPORTANT — read these fields first:
-1. "description": plain English. Contains a "Moves:" line at the end listing exactly what each direction leads to. USE THIS.
-2. "last_move_result": tells you what happened last turn — if BLOCKED, do NOT try that direction again.
-3. "move_history": your last 6 moves — if a direction keeps showing BLOCKED, stop trying it.
-4. "ascii": visual map. # = wall, . = low, H = high, @ = you(low), P = you(high), G = goal(low), * = goal(high-need ramp), ^ > v < = ramps, b/B = boxes.
+══════════════════════════════════════════
+THE MOVES LINE IS YOUR MOST IMPORTANT GUIDE
+══════════════════════════════════════════
+The "description" field ends with a line like:
+  Moves: N=WALL, S=CLIFF(blocked, need ramp), E=open, W=GOAL.
 
-THE MOVES LINE in "description" looks like:
-  Moves: N=WALL, S=open, E=GOAL, W=ramp(faces W).
-This tells you EXACTLY what is in each adjacent cell. NEVER move into a WALL.
+What each value means — STRICTLY follow this:
+  open                    → SAFE. You can move there.
+  GOAL                    → MOVE HERE. You win instantly.
+  WALL                    → BLOCKED. Never move there.
+  CLIFF(blocked,...)      → BLOCKED. Never move there without a ramp.
+  box                     → A box is there. You can push it if you're at the same height.
+  ramp(faces X)           → A ramp is there. Read the description for exact usage instructions.
 
-HEIGHT RULES (from description):
-- You cannot step UP onto high ground (H) directly — you need a ramp.
-- A ramp instruction in "description" tells you: "stand at [r,c] and move X — you land on high ground."
-- Moving to same or lower height is always free.
+If a direction says WALL or CLIFF → DO NOT CHOOSE IT, even if the goal is that way.
 
-BOXES (from description or ascii):
-- b/B = box. Push it by walking into it from the same height.
-- You can step ONTO a box top if you are already at or above its height.
+══════════════════════════════════════
+OTHER OBSERVATION FIELDS
+══════════════════════════════════════
+"ascii": visual map of the board.
+  # wall  . low  H high  @ you(low)  P you(high)
+  G goal(low)  * goal(high — need ramp to reach)
+  ^ > v < ramps (arrow shows climb direction)  b/B boxes
 
-STRATEGY:
-1. Read the Moves line. Pick a direction that is NOT WALL and moves toward the goal.
-2. If goal is marked * (high ground), find a ramp first — description tells you exactly how to use it.
-3. If you were just BLOCKED (check last_move_result), pick a DIFFERENT direction.
-4. If move_history shows you repeating the same BLOCKED direction, try something else entirely.
+"player": your [row, col]. "goal": target [row, col].
+"steps_remaining": moves left.
+"last_move_result": what happened last move (may be unreliable — trust Moves line more).
+"move_history": recent moves (may be unreliable — trust Moves line more).
 
-Output: single letter (N/S/E/W) on the first line, brief reason after.
+══════════════════════════════════════
+HEIGHT AND RAMPS
+══════════════════════════════════════
+- You cannot step UP onto high ground directly — CLIFF means it's blocked.
+- To reach high ground, use a ramp. The "description" gives exact instructions:
+  e.g. "stand at [r,c] and move E — you land on high ground at [r,c+2]"
+- If the goal is marked * (high), you MUST use a ramp — find it in the description.
+
+══════════════════════════════════════
+DECISION PROCESS (follow every turn)
+══════════════════════════════════════
+1. Read the Moves line. Note which directions are WALL or CLIFF — eliminate them.
+2. From the remaining open directions, pick the one closest to the goal.
+3. If the goal direction is CLIFF, look for a ramp in the description and move toward it.
+4. Never pick a direction marked WALL or CLIFF — it will always fail.
+
+Output: direction on first line, one sentence of reasoning after.
