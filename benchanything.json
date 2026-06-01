@@ -9,7 +9,7 @@
     "observation_space": { "type": "json" },
     "action_space": {
       "type": "discrete",
-      "choices": ["N", "S", "E", "W"]
+      "enum_values": ["N", "S", "E", "W"]
     },
     "reward": { "type": "binary", "range": { "low": 0.0, "high": 1.0 } },
     "episode": { "max_steps": 100, "deterministic_reset": true, "supports_seed": true }
