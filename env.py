@@ -126,8 +126,14 @@ class SokobanEnv(BaseEnv):
         )
         if len(self.move_history) > 6:
             self.move_history.pop(0)
-        reward = 1.0 if won else 0.0
-        efficiency = round(self.optimal_steps / self.steps, 4) if (won and self.optimal_steps) else 0.0
+        # Reward is proportional to efficiency: an optimal solve scores 1.0, taking
+        # 2x the optimal number of moves scores 0.5, etc. (= optimal_steps / steps,
+        # capped at 1.0). Maps without a known optimal fall back to a flat 1.0 win.
+        efficiency = round(min(1.0, self.optimal_steps / self.steps), 4) if (won and self.optimal_steps) else 0.0
+        if won:
+            reward = efficiency if self.optimal_steps else 1.0
+        else:
+            reward = 0.0
         return StepResult(
             observation=self._obs(),
             reward=reward,

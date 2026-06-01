@@ -10,6 +10,13 @@ const ALIAS_MAP = {
 };
 const DIR_RAMP_MAP = { N: 4, E: 5, S: 6, W: 7 };
 
+// Win reward, proportional to efficiency (mirrors env.py): optimal_steps / steps,
+// capped at 1.0. Falls back to a flat 1.0 when the optimal isn't known.
+function winReward(optimal, steps) {
+  if (!optimal || !steps) return 1.0;
+  return Math.min(1, Math.round((optimal / steps) * 10000) / 10000);
+}
+
 function parseAction(raw) {
   const t = raw.trim();
   const direct = ALIAS_MAP[t.toLowerCase()] || t.toUpperCase();
@@ -439,7 +446,7 @@ function buildEpisodeFramesFromTraces(traceEvents) {
       isInvalid:  !valid,
       terminated: game.won,
       truncated:  !game.won ? (result.truncated || false) : false,
-      reward:     game.won ? 1.0 : 0,
+      reward:     game.won ? winReward(initObs.optimal_steps, game.steps) : 0,
     });
 
     if (game.won) break;
@@ -507,7 +514,7 @@ function buildEpisodeFrames(rawSteps) {
         isInvalid: !valid,
         terminated: game.won,
         truncated:  isLastAction && isLastCall && !game.won ? (llmStep.truncated || false) : false,
-        reward:     game.won ? 1.0 : 0,
+        reward:     game.won ? winReward(initObs.optimal_steps, game.steps) : 0,
       });
 
       if (game.won) break;

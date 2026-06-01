@@ -51,7 +51,9 @@ A move into an adjacent cell:
   - below the box base → blocked. **You can never climb up onto a box from
     below** — ramps remain the only way to gain height.
 
-Reach the goal cell to win (reward `1.0`); the episode truncates at `max_steps`.
+Reach the goal cell to win; the episode truncates at `max_steps`. The win reward is
+**proportional to efficiency** — `optimal_steps / steps` (capped at `1.0`), so an
+optimal solve scores `1.0`, twice the optimal number of moves scores `0.5`, and so on.
 
 ## Layout
 
@@ -160,5 +162,6 @@ mesocosm run create --domain <id> --vow-version 2.0.0 --model <model> \
 
 `reset` picks a map by `seed % num_maps` (deterministic). Actions are
 `N`/`S`/`E`/`W` (with `up`/`down`/`left`/`right` aliases); anything else is a
-no-op flagged `info.invalid = "1.0"`. Reward is `1.0` on the step the player
-reaches the goal, else `0.0`.
+no-op flagged `info.invalid = "1.0"`. Reward is `0.0` until the player reaches the
+goal, then `optimal_steps / steps` (capped at `1.0`) — i.e. proportional to how
+efficiently the level was solved.

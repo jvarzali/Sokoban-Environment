@@ -21,7 +21,7 @@
       "description": "Free-text response so the model can reason first. End with a line 'ACTION: X' where X is one of N, S, E, W; env.py parses the ACTION: marker (a bare N/S/E/W also works)."
     },
     "reward": {
-      "type": "binary",
+      "type": "scalar",
       "range": {
         "low": 0.0,
         "high": 1.0
