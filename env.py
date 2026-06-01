@@ -191,7 +191,38 @@ class SokobanEnv(BaseEnv):
                 elif cell in self.boxes:  row.append(2 if terr == "high" else 8)
                 else:                     row.append(1 if terr == "high" else 0)
             grid.append(row)
-        obs = {"grid": grid, "player": list(self.player),
+        # ASCII map: makes spatial layout immediately readable for the agent.
+        # Symbols: # wall  . low  H high  @ player  G goal  b box-low  B box-high
+        #          ^ ramp-N  > ramp-E  v ramp-S  < ramp-W
+        _SYM = {0:'.', 1:'H', 2:'B', 3:'#', 4:'^', 5:'>', 6:'v', 7:'<',
+                8:'b', 9:'@', 10:'@', 11:'@', 12:'@'}
+        gr, gc = self.goal
+        ascii_rows = []
+        for r, row in enumerate(grid):
+            line = ""
+            for c, v in enumerate(row):
+                if r == gr and c == gc and v not in (9, 10, 11, 12):
+                    line += "G"
+                else:
+                    line += _SYM.get(v, "?")
+            ascii_rows.append(line)
+
+        # Plain-English description of key elements
+        pr, pc = self.player
+        elev_name = {0: "low ground", 2: "high ground", 4: "top of a box"}.get(
+            self._stand(self.player), "unknown")
+        notes = [f"Player at [{pr},{pc}] on {elev_name}.",
+                 f"Goal at [{gr},{gc}]."]
+        for (r, c), d in self.ramps.items():
+            notes.append(f"Ramp at [{r},{c}] climbs {d} (approach from the opposite side).")
+        for (r, c) in self.boxes:
+            t = "high" if self.terrain[r][c] == "high" else "low"
+            notes.append(f"Box at [{r},{c}] on {t} ground.")
+
+        obs = {"ascii": "\n".join(ascii_rows),
+               "description": " ".join(notes),
+               "grid": grid,
+               "player": list(self.player),
                "player_elevation": self._stand(self.player),
                "goal": list(self.goal),
                "steps_used": self.steps,

@@ -353,9 +353,9 @@ function buildEpisodeFrames(rawSteps) {
         reasoning: isLastAction ? reasoning : null,
         isLLMStart: false,
         isInvalid: !valid,
-        terminated: isLastAction && isLastCall ? (llmStep.terminated || game.won) : game.won,
-        truncated:  isLastAction && isLastCall ? (llmStep.truncated  || false) : false,
-        reward:     isLastAction               ? (llmStep.reward     || 0)     : 0,
+        terminated: game.won,
+        truncated:  isLastAction && isLastCall && !game.won ? (llmStep.truncated || false) : false,
+        reward:     game.won ? 1.0 : 0,
       });
 
       if (game.won) break;
@@ -376,7 +376,8 @@ function buildEpisodes() {
   for (const [id, rawSteps] of Object.entries(replayData.replay || {})) {
     const meta  = epMeta[id] || {};
     const steps = buildEpisodeFrames(rawSteps);
-    episodes.push({ id, seed: meta.seed ?? "?", won: meta.total_reward > 0, steps });
+    const won = meta.terminal_info?.success === "1.0" || meta.total_reward >= 1.0;
+    episodes.push({ id, seed: meta.seed ?? "?", won, steps });
   }
   episodes.sort((a, b) => a.seed - b.seed);
 
