@@ -296,47 +296,44 @@ document.getElementById("replayFile").addEventListener("change", (e) => {
   reader.readAsText(file);
 });
 
-// Build frames directly from the raw trace events for one episode.
-// The traces section contains one entry per env step (not per LLM call), so
-// every action is present even when the LLM produced multiple direction tokens.
-// Each step contributes two frames: a "thinking" frame showing what the agent
-// saw, then an "action" frame showing the move taken and its outcome.
+// Build frames from raw trace events, simulating every action on the correct
+// initial map. Traces give per-env-step resolution (all actions present, even
+// when one LLM call produced multiple direction tokens). The board_before/
+// board_after observations in traces are contaminated when the platform runs
+// episodes concurrently on a shared env, so we ignore them for rendering and
+// drive the visuals entirely from the local JS engine on the correct initial map.
 function buildEpisodeFramesFromTraces(traceEvents) {
-  // Sort by step number then timestamp so events are in execution order.
   const sorted = [...traceEvents].sort((a, b) =>
     a.step !== b.step ? a.step - b.step : (a.timestamp < b.timestamp ? -1 : 1));
 
-  // Find the initial board state (phase:"start" observation at step 0).
+  // Initial board state comes from the phase:"start" observation (always correct).
   const startEvt = sorted.find(e =>
     e.event_type === "observation" && e.payload?.phase === "start");
   const initObs = startEvt?.payload?.data?.observation || startEvt?.payload?.data;
-  if (!initObs?.grid) return null;  // fall back to replay-based builder
+  if (!initObs?.grid) return null;
 
-  // Group events by their step number.
+  // Collect the ordered action sequence and per-step result metadata.
   const byStep = {};
   for (const e of sorted) {
-    if (!byStep[e.step]) byStep[e.step] = [];
-    byStep[e.step].push(e);
+    if (!byStep[e.step]) byStep[e.step] = {};
+    if (e.event_type === "action")
+      byStep[e.step].action = e.payload?.action;
+    if (e.event_type === "step_result")
+      byStep[e.step].result = e.payload;
   }
-
-  const frames = [];
   const stepNums = Object.keys(byStep).map(Number).sort((a, b) => a - b).filter(s => s >= 1);
 
+  const maxSteps = (initObs.steps_used || 0) + (initObs.steps_remaining || 100);
+  const game = new Sokoban({ name: "replay", grid: initObs.grid, goal: initObs.goal, max_steps: maxSteps });
+
+  const frames = [];
   for (const stepNum of stepNums) {
-    const evts = byStep[stepNum];
-    const beforeEvt = evts.find(e => e.event_type === "observation" && e.payload?.phase === "before_agent");
-    const actionEvt = evts.find(e => e.event_type === "action");
-    const resultEvt = evts.find(e => e.event_type === "step_result");
+    const { action, result = {} } = byStep[stepNum];
+    if (!action) continue;
 
-    if (!actionEvt) continue;
-
-    const obs    = beforeEvt?.payload?.data?.observation || beforeEvt?.payload?.data || initObs;
-    const action = actionEvt.payload?.action;
-    const result = resultEvt?.payload || {};
-
-    // Thinking frame: what the agent saw before deciding.
+    // Thinking frame before this move.
     frames.push({
-      obs,
+      obs:        obsFromGame(game, initObs),
       action:     null,
       reasoning:  null,
       isLLMStart: true,
@@ -346,20 +343,22 @@ function buildEpisodeFramesFromTraces(traceEvents) {
       reward:     0,
     });
 
-    // Action frame: the move taken and its outcome, still showing pre-move board
-    // so the player position reflects where the agent was standing when it acted.
+    if (game.won) break;
+
+    const valid = game.move(action);
+
     frames.push({
-      obs,
+      obs:        obsFromGame(game, initObs),
       action,
       reasoning:  null,
       isLLMStart: false,
-      isInvalid:  result.info?.invalid === "1.0",
-      terminated: result.terminated || false,
-      truncated:  result.truncated  || false,
-      reward:     result.reward     || 0,
+      isInvalid:  !valid,
+      terminated: game.won,
+      truncated:  !game.won ? (result.truncated || false) : false,
+      reward:     game.won ? 1.0 : 0,
     });
 
-    if (result.terminated || result.truncated) break;
+    if (game.won) break;
   }
 
   return frames.length ? frames : null;
