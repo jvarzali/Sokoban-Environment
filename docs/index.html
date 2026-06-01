@@ -221,8 +221,9 @@
       <button data-mode="split">Split</button>
     </span>
     <span class="sep"></span>
-    <input type="file" id="replayFile" accept=".json" aria-label="Load run export" />
-    <select id="replayEpSel" aria-label="Episode"><option>— load a run export —</option></select>
+    <select id="bundledRunSel" aria-label="Load bundled run"><option value="">— select a run —</option></select>
+    <input type="file" id="replayFile" accept=".json" aria-label="Load local file" title="Load a local run export JSON" />
+    <select id="replayEpSel" aria-label="Episode"><option>— load a run —</option></select>
     <span class="sep"></span>
     <button id="replayPlayBtn">▶ Play</button>
     <button id="replayAutoBtn">⏭ Auto-play</button>
@@ -262,6 +263,35 @@
   <script src="game.js"></script>
   <script type="module" src="app.js"></script>
   <script src="replay.js"></script>
+  <script>
+    // Populate the bundled-run dropdown from runs/index.json, then load on select.
+    fetch("runs/index.json")
+      .then(r => r.json())
+      .then(runs => {
+        const sel = document.getElementById("bundledRunSel");
+        runs.forEach(run => {
+          const opt = document.createElement("option");
+          opt.value = run.file;
+          opt.textContent = run.label;
+          sel.appendChild(opt);
+        });
+      })
+      .catch(() => {});   // silently ignore if manifest missing (local file:// dev)
+
+    document.getElementById("bundledRunSel").addEventListener("change", function() {
+      if (!this.value) return;
+      fetch("runs/" + this.value)
+        .then(r => r.json())
+        .then(data => {
+          replayData = data;
+          buildEpisodes();
+          document.getElementById("replayStatus").textContent = "Loaded: " + this.options[this.selectedIndex].text;
+        })
+        .catch(err => {
+          document.getElementById("replayStatus").textContent = "Failed to load: " + err.message;
+        });
+    });
+  </script>
   <script src="resize.js"></script>
 </body>
 </html>

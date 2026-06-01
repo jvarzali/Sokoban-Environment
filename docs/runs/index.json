@@ -1,0 +1,26 @@
+[
+  {
+    "file": "run-2.1.0.json",
+    "label": "Claude Sonnet 4.6 — 73% success, 0.61 efficiency"
+  },
+  {
+    "file": "sonnet-4-6.json",
+    "label": "Claude Sonnet 4.6 — 67% success, 0.60 efficiency"
+  },
+  {
+    "file": "old-sonnet-4-6.json",
+    "label": "Claude Sonnet 4.6 (early) — 53% success, 0.51 efficiency"
+  },
+  {
+    "file": "gpt4o.json",
+    "label": "GPT-4o"
+  },
+  {
+    "file": "gpt.json",
+    "label": "GPT-4o (v1)"
+  },
+  {
+    "file": "gemini.json",
+    "label": "Gemini 3.1 Flash Lite"
+  }
+]
