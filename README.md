@@ -61,40 +61,51 @@ adapter.py        # serves SokobanEnv over JSON/HTTP
 verify_maps.py    # BFS solvability checker for maps/*.json
 benchanything.json# manifest + scoring
 requirements.txt  # depends only on the Mesocosm env SDK
-maps/*.json       # 16 authored maps, easy -> hard, all BFS-verified solvable
+maps/*.json       # 15 authored maps, easy -> hard, all BFS-verified solvable
 src/env_sdk.py    # local stand-in for the Mesocosm SDK (swap at submission)
 tests/test_env.py # engine unit tests
 frontend/         # browser viewers (2D + 3D) that reuse a JS port of the engine
 ```
 
-## Frontend (play / watch in the browser)
+## Frontend (watch agent runs in the browser)
 
-One page under `frontend/index.html` with a **2D / 3D / Split** view toggle. Both
-views share `game.js` — a JS port of `env.py` verified move-for-move against it
-(`node frontend/parity_test.js`). Features: arrow keys / WASD to move, undo, map
-picker, **★ Solve & play** to watch the BFS solution animate, a speed slider, and
-a trajectory box to replay an agent's run (paste `["S","E","N","E"]`). The 3D
-view (Three.js, vendored in `frontend/vendor/`, no internet needed) orbits/zooms
-and tweens the player up ramps and boxes off ledges.
+One page under `frontend/index.html` is a **replay viewer** with a **2D / 3D /
+Split** toggle. Load a `mesocosm run export` JSON (file picker — exports live in
+`frontend/runs/`) and watch the agent play each episode back, one env step at a
+time. It re-simulates every move with `game.js` — a JS port of `env.py` verified
+move-for-move against it (`node frontend/parity_test.js`) — so the visuals are
+driven by the trusted engine rather than the (sometimes contaminated) exported
+boards.
+
+Controls: an episode/seed picker, ◀ / ▶ per-move stepping (or the <kbd>←</kbd>
+<kbd>→</kbd> keys), **▶ Play** for one level and **⏭ Auto-play** through every
+level, and a speed slider. Each step shows the agent's **reasoning** for that move,
+and an **invalid move flashes the ball red and bounces it** off the blocked cell.
+Wins pop a banner with confetti. The 3D view (Three.js, vendored in
+`frontend/vendor/`, no internet needed) orbits/zooms and tweens the player up ramps
+and boxes off ledges.
 
 **Serve it over HTTP — don't open the file directly.** The app uses ES modules,
 which browsers block on `file://`:
 
 ```bash
 python -m http.server 8000        # from the repo root
-# then open http://localhost:8000/frontend/
+# then open http://localhost:8000/frontend/  and load a file from frontend/runs/
 ```
 
 Regenerate the bundled maps after editing `maps/` with `python frontend/build_maps.py`.
 
 ```
 frontend/
-  index.html      # the app (2D / 3D / Split toggle)
+  index.html      # the replay viewer (2D / 3D / Split toggle)
+  app.js          # view controller: owns the 2D + 3D renderers, view toggle
+  replay.js       # loads run-export JSON, builds per-move frames, drives playback
   game.js         # engine: JS port of env.py (also used by parity_test)
-  view2d.js       # 2D grid renderer        app.js  # controller (wires it together)
-  view3d.js       # 3D Three.js renderer     maps.js # bundled maps (build_maps.py)
+  view2d.js       # 2D grid renderer         view3d.js # 3D Three.js renderer
+  maps.js         # bundled maps             build_maps.py # regenerates maps.js
   vendor/         # vendored three.module.js + OrbitControls.js
   parity_test.js  # node check: JS engine == Python engine
+  runs/           # exported run JSONs to load in the viewer
 ```
 
 `src/env_sdk.py` is a minimal local shim so the package runs and tests pass
