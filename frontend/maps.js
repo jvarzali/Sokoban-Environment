@@ -33,7 +33,7 @@ window.SOKOBAN_MAPS = [
       4
     ],
     "optimal_steps": 3,
-    "max_steps": 50
+    "max_steps": 100
   },
   {
     "name": "basic_movement_2",
@@ -89,7 +89,7 @@ window.SOKOBAN_MAPS = [
       5
     ],
     "optimal_steps": 10,
-    "max_steps": 50
+    "max_steps": 100
   },
   {
     "name": "basic_movement_3",
@@ -208,7 +208,7 @@ window.SOKOBAN_MAPS = [
       6
     ],
     "optimal_steps": 8,
-    "max_steps": 50
+    "max_steps": 100
   },
   {
     "name": "basic_movement_4",
@@ -303,7 +303,7 @@ window.SOKOBAN_MAPS = [
       7
     ],
     "optimal_steps": 9,
-    "max_steps": 50
+    "max_steps": 100
   },
   {
     "name": "boxes_1",
@@ -346,7 +346,7 @@ window.SOKOBAN_MAPS = [
       3
     ],
     "optimal_steps": 3,
-    "max_steps": 75
+    "max_steps": 100
   },
   {
     "name": "boxes_2",
@@ -397,7 +397,7 @@ window.SOKOBAN_MAPS = [
       4
     ],
     "optimal_steps": 5,
-    "max_steps": 75
+    "max_steps": 100
   },
   {
     "name": "boxes_3",
@@ -450,7 +450,7 @@ window.SOKOBAN_MAPS = [
       3
     ],
     "optimal_steps": 6,
-    "max_steps": 75
+    "max_steps": 100
   },
   {
     "name": "boxes_4",
@@ -517,7 +517,7 @@ window.SOKOBAN_MAPS = [
       3
     ],
     "optimal_steps": 7,
-    "max_steps": 75
+    "max_steps": 100
   },
   {
     "name": "ramps_1",
@@ -875,7 +875,7 @@ window.SOKOBAN_MAPS = [
       2
     ],
     "optimal_steps": 8,
-    "max_steps": 150
+    "max_steps": 100
   },
   {
     "name": "challenge_2",
@@ -940,7 +940,7 @@ window.SOKOBAN_MAPS = [
       5
     ],
     "optimal_steps": 12,
-    "max_steps": 150
+    "max_steps": 100
   },
   {
     "name": "challenge_3",
@@ -1014,6 +1014,6 @@ window.SOKOBAN_MAPS = [
       1
     ],
     "optimal_steps": 19,
-    "max_steps": 150
+    "max_steps": 100
   }
 ];

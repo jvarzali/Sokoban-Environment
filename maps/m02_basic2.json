@@ -52,5 +52,5 @@
     5
   ],
   "optimal_steps": 10,
-  "max_steps": 50
+  "max_steps": 100
 }

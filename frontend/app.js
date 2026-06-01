@@ -64,6 +64,8 @@ function init() {
   window.appRenderFrame = (game, hudMsg, hudCls) => render(game, hudMsg, hudCls);
   // replay.js calls this on a win to burst confetti around the ball in the views
   window.appCelebrate = () => { if (view2d) view2d.confetti(); if (view3d) view3d.confetti(); };
+  // replay.js calls this on an invalid move so the ball lunges, flashes red, springs back
+  window.appBump = (dir) => { if (view2d) view2d.bump(dir); if (view3d) view3d.bump(dir); };
 
   setMode("2d");
 

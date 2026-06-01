@@ -646,6 +646,14 @@ function renderReplay() {
     return;
   }
 
+  // Invalid move: the player tried to go `frame.action` but it was blocked.
+  // The board didn't change, so play the red lunge/bounce toward the blocked
+  // cell after the rebuild (the rebuild recreates the player, so bump must run
+  // after appRenderFrame). Only on the result frame, not the thinking frame.
+  if (frame.isInvalid && !frame.isLLMStart && "NSEW".includes(frame.action) && window.appBump) {
+    requestAnimationFrame(() => window.appBump(frame.action));
+  }
+
   // Action line
   if (frame.action) {
     replayAction.innerHTML =
