@@ -92,10 +92,8 @@ class SokobanEnv(BaseEnv):
             invalid = not self._try_move(a)
         self.steps += 1
         won = self.player == self.goal
-        if won and self.optimal_steps:
-            reward = min(1.0, self.optimal_steps / self.steps)
-        else:
-            reward = 1.0 if won else 0.0
+        reward = 1.0 if won else 0.0
+        efficiency = round(self.optimal_steps / self.steps, 4) if (won and self.optimal_steps) else 0.0
         return StepResult(
             observation=self._obs(),
             reward=reward,
@@ -104,7 +102,8 @@ class SokobanEnv(BaseEnv):
             info={"success": "1.0" if won else "0.0",
                   "steps": str(self.steps),
                   "invalid": "1.0" if invalid else "0.0",
-                  "optimal_steps": str(self.optimal_steps) if self.optimal_steps else ""},
+                  "optimal_steps": str(self.optimal_steps) if self.optimal_steps else "",
+                  "efficiency": str(efficiency)},
         )
 
     # --- geometry helpers ---

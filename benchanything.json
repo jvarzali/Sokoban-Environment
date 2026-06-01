@@ -18,9 +18,10 @@
     "primary_metric": "success_rate",
     "higher_is_better": true,
     "metrics": [
-      { "name": "success_rate", "type": "terminal_field", "field": "success", "aggregation": "pass_rate" },
-      { "name": "avg_steps",    "type": "terminal_field", "field": "steps",   "aggregation": "mean" },
-      { "name": "invalid_rate", "type": "terminal_field", "field": "invalid", "aggregation": "mean" }
+      { "name": "success_rate", "type": "terminal_field", "field": "success",    "aggregation": "pass_rate" },
+      { "name": "efficiency",   "type": "terminal_field", "field": "efficiency", "aggregation": "mean" },
+      { "name": "avg_steps",    "type": "terminal_field", "field": "steps",      "aggregation": "mean" },
+      { "name": "invalid_rate", "type": "terminal_field", "field": "invalid",    "aggregation": "mean" }
     ]
   }
 }
