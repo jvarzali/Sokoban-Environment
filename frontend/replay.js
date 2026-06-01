@@ -67,11 +67,18 @@ function obsFromGame(game, baseObs) {
   };
 }
 
-// Expand one LLM-call step into frames using the actual board_before / board_after
-// observations from the export — no re-execution from verbose reasoning text.
+// Expand one LLM-call step into frames.
+//
+// Root cause of multi-step calls: the LLM outputs verbose reasoning containing
+// direction words ("West-facing ramp", "approach from East", "climb North…").
+// The platform treats every direction token in the response as a separate env
+// step and calls /step once per token, so one LLM call can consume 4–18 env
+// steps.  We detect this (afterObs.steps_used − baseObs.steps_used > 1) and
+// re-simulate each intermediate step with the local JS game engine so the
+// viewer shows every move instead of jumping from board_before to board_after.
 //
 // The board_before for the very first LLM call of an episode is often stale
-// (it carries the final state of the *previous* episode). We detect this by
+// (it carries the final state of the previous episode). We detect this by
 // comparing goals and grid dimensions; if they disagree we skip that frame so
 // the viewer never shows the wrong map.
 function expandLLMStep(llmStep) {
@@ -104,7 +111,63 @@ function expandLLMStep(llmStep) {
     });
   }
 
-  // Result frame — the actual state after the env processed this LLM call.
+  // Detect multi-step: platform executed more than 1 env step from this LLM call.
+  const beforeSteps = baseObs?.steps_used ?? 0;
+  const afterSteps  = afterObs?.steps_used;
+  const numSteps    = (sameMap && afterSteps != null && afterSteps > beforeSteps)
+    ? afterSteps - beforeSteps : 1;
+
+  if (sameMap && numSteps > 1) {
+    // Re-simulate each intermediate step with the local game engine.
+    // We extract direction tokens from the LLM reasoning in order — the same
+    // tokens the platform parsed — and replay the first numSteps of them.
+    const allActions = extractAllActions(reasoning);
+    const actions    = allActions.slice(0, numSteps);   // platform uses first N tokens
+
+    const maxSteps = beforeSteps + (baseObs.steps_remaining || 100);
+    const game = new Sokoban({
+      name: "replay",
+      grid: baseObs.grid,
+      goal: baseObs.goal,
+      max_steps: maxSteps,
+    });
+
+    for (let i = 0; i < actions.length; i++) {
+      const act    = actions[i];
+      const valid  = game.move(act);
+      const isLast = i === actions.length - 1;
+      const obs    = obsFromGame(game, baseObs);
+      frames.push({
+        obs,
+        action: act,
+        reasoning: isLast ? reasoning : null,
+        isLLMStart: false,
+        isInvalid: !valid,
+        terminated: isLast ? (llmStep.terminated || false) : false,
+        truncated:  isLast ? (llmStep.truncated  || false) : false,
+        reward:     isLast ? (llmStep.reward      || 0)    : 0,
+      });
+    }
+
+    // If the reasoning had fewer tokens than numSteps, show board_after as the
+    // authoritative final state so we never silently drop env steps.
+    if (actions.length < numSteps && afterObs?.grid) {
+      const parsedAction = parseAction(llmStep.action || "");
+      frames.push({
+        obs: afterObs,
+        action: "NSEW".includes(parsedAction) ? parsedAction : null,
+        reasoning,
+        isLLMStart: false,
+        isInvalid: llmStep.info?.invalid === "1.0",
+        terminated: llmStep.terminated || false,
+        truncated:  llmStep.truncated  || false,
+        reward:     llmStep.reward     || 0,
+      });
+    }
+    return frames;
+  }
+
+  // Single env-step (or stale board_before): original two-frame behavior.
   if (afterObs?.grid) {
     const parsedAction = parseAction(llmStep.action || "");
     const isInvalid = llmStep.info?.invalid === "1.0";
