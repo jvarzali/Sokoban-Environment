@@ -4,7 +4,7 @@
   "description": "Top-down two-height maze. Cross ramps (locked orientation) to climb the one height step; drop down ledges for free. Push boxes (incl. off ledges), or stand on top of a box (a box is one step tall) to cross at the higher level, though you can never climb up onto a box from below. Clear a path and reach the goal cell.",
   "binding_vow": {
     "id": "mountain-sokoban-v1",
-    "version": "1.1.0",
+    "version": "1.0.0",
     "tier": "tier1",
     "observation_space": { "type": "json" },
     "action_space": {
