@@ -1,7 +1,7 @@
-"""Bundle maps/*.json into frontend/maps.js so the page works from file://.
+"""Bundle maps/*.json into docs/maps.js so the page works from file://.
 
 Run after adding or editing maps:
-    python frontend/build_maps.py
+    python docs/build_maps.py
 """
 import glob
 import json
