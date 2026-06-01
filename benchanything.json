@@ -29,7 +29,9 @@
     "episode": {
       "max_steps": 100,
       "deterministic_reset": true,
-      "supports_seed": true
+      "supports_seed": true,
+      "parallel_episodes": 1,
+      "observability": "full"
     }
   },
   "scoring": {
