@@ -4,20 +4,8 @@
     "label": "Claude Sonnet 4.6"
   },
   {
-    "file": "sonnet-4-6.json",
-    "label": "Claude Sonnet 4.6 (v2)"
-  },
-  {
-    "file": "old-sonnet-4-6.json",
-    "label": "Claude Sonnet 4.6 (v1)"
-  },
-  {
     "file": "gpt4o.json",
     "label": "GPT-4o"
-  },
-  {
-    "file": "gpt.json",
-    "label": "GPT-4o (v1)"
   },
   {
     "file": "gemini.json",
