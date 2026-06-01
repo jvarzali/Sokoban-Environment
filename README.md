@@ -116,18 +116,14 @@ python adapter.py --host 127.0.0.1 --port 8765
 
 ### Mesocosm benchmark runs
 
-**Always pass `--max-tokens 1`** when running on the platform. Without it the
-LLM generates verbose reasoning containing direction words ("West-facing ramp",
-"approach from East"…), and the platform executes every direction token it finds
-as a separate `/step` call — one LLM call can consume 10+ env steps.
-
 ```bash
-# local test run
-mesocosm run local --model ollama/<model> --episodes 15 --seeds '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]'
+# local test run — seeds are space-separated integers
+mesocosm run local --model ollama/<model> --episodes 15 --seeds 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
 
-# platform run — pin seeds so each of the 15 maps is covered exactly once
+# platform run — pass system_prompt so the agent knows the game rules
 mesocosm run create --domain <id> --vow-version 1.0.0 --model <model> \
-  --episodes 15 --seeds '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]'
+  --episodes 15 \
+  --system-prompt "$(cat system_prompt.txt)"
 ```
 
 ### HTTP protocol (local shim)
