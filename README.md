@@ -116,12 +116,24 @@ python adapter.py --host 127.0.0.1 --port 8765
 
 ### Mesocosm benchmark runs
 
-```bash
-# local test run — seeds are space-separated integers
-mesocosm run local --model ollama/<model> --episodes 15 --seeds 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+The action space is `text` (vow `2.0.0`): the agent writes its reasoning, then
+ends with `ACTION: X` (`env.py` parses the marker). This avoids the platform's
+forced structured-output path, which suppresses chain-of-thought on discrete
+action spaces.
 
-# platform run — pass system_prompt so the agent knows the game rules
-mesocosm run create --domain <id> --vow-version 1.0.0 --model <model> \
+```bash
+# validate the manifest against platform policy
+mesocosm validate benchanything.json
+
+# local test run (Ollama, no API) — seeds are space-separated integers
+mesocosm run local --manifest benchanything.json \
+  --model ollama/<model> --episodes 15 --seeds 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+
+# publish/update the env on the platform (pulls the pushed repo)
+mesocosm env submit --name Sokoban --github-url <repo-url>
+
+# platform run — vow 2.0.0, pass system_prompt so the agent knows the game rules
+mesocosm run create --domain <id> --vow-version 2.0.0 --model <model> \
   --episodes 15 \
   --system-prompt "$(cat system_prompt.txt)"
 ```
