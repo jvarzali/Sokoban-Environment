@@ -448,7 +448,11 @@ function buildEpisodes() {
     // Fall back to buildEpisodeFrames when traces are absent or yield nothing.
     const steps = (tracesMap[id] && buildEpisodeFramesFromTraces(tracesMap[id]))
                || buildEpisodeFrames(rawSteps);
-    const won = meta.terminal_info?.success === "1.0" || meta.total_reward >= 1.0;
+    // Trust the local simulation over platform metadata — platform scores can
+    // be wrong when concurrent episodes share a single env instance.
+    const wonLocally = steps.some(f => f.terminated);
+    const wonPlatform = meta.terminal_info?.success === "1.0" || meta.total_reward >= 1.0;
+    const won = wonLocally || wonPlatform;
     episodes.push({ id, seed: meta.seed ?? "?", won, steps });
   }
   episodes.sort((a, b) => a.seed - b.seed);
