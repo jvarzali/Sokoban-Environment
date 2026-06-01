@@ -56,3 +56,8 @@ STRATEGY:
     gaps or cross at the higher level.
 
 OUTPUT: Reply with ONLY a single character: N, S, E, or W. Nothing else.
+
+WARNING — CRITICAL: The platform executes EVERY direction word it finds anywhere
+in your response as a separate move (including words like "West", "East", "north",
+"south", "up", "down" that appear in your reasoning). Verbose responses cause many
+unintended moves. Output ONLY the single letter — no reasoning, no explanation.
