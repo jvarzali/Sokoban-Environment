@@ -169,7 +169,7 @@ export class View3D {
     const R = 0.5 * Math.hypot(this.cols, this.rows) + 0.65;    // bounding radius (+ block/entity height)
     const vHalf = THREE.MathUtils.degToRad(this.camera.fov) / 2;
     const hHalf = Math.atan(Math.tan(vHalf) * aspect);
-    const D = (R * 1.04) / Math.sin(Math.min(vHalf, hHalf));    // pull back just enough to fill the view
+    const D = (R * 0.82) / Math.sin(Math.min(vHalf, hHalf));    // pull in so the board renders larger (<1 = overscan / zoomed in)
     const az = this._framed ? this.controls.getAzimuthalAngle() : Math.PI * 0.25;
     this.controls.target.copy(center);
     this.controls.minDistance = this.controls.maxDistance = D;
