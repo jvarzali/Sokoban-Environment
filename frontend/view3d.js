@@ -89,6 +89,7 @@ export class View3D {
   // ---- (re)build the whole scene from an engine state ----
   build(engine) {
     this._finishAnim();
+    this._bump = null;
     this.engine = engine;
     if (this.boardGroup) this.scene.remove(this.boardGroup);
     this.boardGroup = new THREE.Group();
@@ -235,6 +236,30 @@ export class View3D {
 
   isBusy() { return !!this.anim; }
 
+  // illegal move: nudge the player toward the blocked cell, flash red, spring back
+  bump(dir) {
+    if (!this.playerMesh) return;
+    if (this.anim) this._finishAnim();
+    const D = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[dir];   // [dx, dz]
+    if (!D) return;
+    this.playerMesh.material.color.setHex(0xcf6a6a);                   // soft red during the bounce
+    // peak travel = half a cell minus the sphere radius, so the ball meets the
+    // wall edge instead of clipping into it
+    this._bump = { t: 0, dur: 0.42, from: this.playerMesh.position.clone(), dx: D[0] * 0.22, dz: D[1] * 0.22 };
+  }
+
+  _advanceBump(dt) {
+    const b = this._bump;
+    b.t = Math.min(1, b.t + dt / b.dur);
+    const o = Math.sin(b.t * Math.PI);   // 0 -> 1 -> 0, out and back
+    this.playerMesh.position.set(b.from.x + b.dx * o, b.from.y, b.from.z + b.dz * o);
+    if (b.t >= 1) {
+      this.playerMesh.position.copy(b.from);
+      this._bump = null;
+      this._tintPlayer();                // restore the elevation-based color
+    }
+  }
+
   resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     if (!w || !h) return;
@@ -249,6 +274,7 @@ export class View3D {
     this._last = now;
     this.controls.update();
     if (this.anim) this._advance(dt);
+    else if (this._bump) this._advanceBump(dt);
     if (this.engine) this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this._loop);
   }

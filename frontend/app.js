@@ -49,8 +49,13 @@ function parseTrajectory() {
 function doMove(dir, animated) {
   if (engine.won || engine.steps >= engine.maxSteps) return false;
   const before = engine.snapshot();
-  const ok = engine.move(dir);
-  if (!ok) { if (!playing) flash(); return false; }
+  const ok = engine.move(dir);   // counts as a turn even when blocked
+  if (!ok) {
+    if (animated) { view2d.bump(dir); if (view3d) view3d.bump(dir); }
+    updateHud(null);             // reflect the spent turn
+    if (!playing) flash();
+    return false;
+  }
   history.push(before);
   if (animated) view2d.animate(before); else view2d.build(engine);
   if (view3d) { if (animated) view3d.animate(before); else view3d.build(engine); }
@@ -116,11 +121,13 @@ function updateHud(flashMsg) {
   const high = engine.terr(engine.player) === "high";
   elevBadge.textContent = high ? "high" : "low";
   elevBadge.className = high ? "badge high" : "badge low";
+  const turnsEl = $("turns");
+  if (turnsEl) turnsEl.textContent = `${engine.steps} / ${engine.maxSteps}`;
   let msg, cls = "hud";
   if (flashMsg) { msg = flashMsg; cls = "hud invalid"; }
-  else if (engine.won) { msg = `✔ Solved "${engine.name}" in ${engine.steps} steps`; cls = "hud win"; }
-  else if (engine.steps >= engine.maxSteps) { msg = `✗ Out of steps (${engine.steps}/${engine.maxSteps})`; cls = "hud fail"; }
-  else msg = `${engine.name} — steps ${engine.steps}/${engine.maxSteps}`;
+  else if (engine.won) { msg = `✔ Solved "${engine.name}" in ${engine.steps} turns`; cls = "hud win"; }
+  else if (engine.steps >= engine.maxSteps) { msg = `✗ Out of turns (${engine.steps}/${engine.maxSteps})`; cls = "hud fail"; }
+  else msg = engine.name;
   hud.textContent = msg;
   hud.className = cls;
 }
