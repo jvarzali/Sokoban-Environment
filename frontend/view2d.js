@@ -4,6 +4,7 @@
 // transitions (so nothing teleports). build() snaps instantly; animate(before)
 // tweens whatever moved, mirroring view3d's API.
 const ARROW = { N: "↑", E: "→", S: "↓", W: "←" };
+const DELTA = { N: [-1, 0], S: [1, 0], E: [0, 1], W: [0, -1] };
 
 export class View2D {
   constructor(boardEl) {
@@ -96,6 +97,10 @@ export class View2D {
     }
     const p = this._entity("player2d", 0.56);
     this.playerEl = p;
+    const core = document.createElement("div");   // inner visual; bounce animates this
+    core.className = "player2d-core";
+    p.appendChild(core);
+    this.playerCore = core;
     this._place(p, engine.player[0], engine.player[1]);
     this.boardEl.appendChild(p);
     this._tintPlayer();
@@ -133,5 +138,24 @@ export class View2D {
       const [r, c] = rampTo.split(",").map(Number);
       this._place(el, r, c);
     }
+  }
+
+  // illegal move: lunge the player toward the blocked cell, flash red, spring back.
+  // Animates the inner core (not the outer cell position), so it never fights the
+  // slide transform and is always visible.
+  bump(dir) {
+    if (!this.playerCore) return;
+    const [dr, dc] = DELTA[dir] || [0, 0];
+    // travel just far enough that the ball's edge meets the wall (half a cell
+    // minus the ball's radius), so it never clips into the wall cell.
+    const amt = this.cell * 0.22;
+    this.playerCore.classList.add("bumping");
+    const anim = this.playerCore.animate(
+      [{ transform: "translate(0,0)", easing: "cubic-bezier(.3,.6,.3,1)" },     // ease into the wall (no overshoot)
+       { transform: `translate(${dc * amt}px, ${dr * amt}px)`, offset: 0.45, easing: "cubic-bezier(.4,0,.3,1.25)" }, // spring back (away from wall)
+       { transform: "translate(0,0)" }],
+      { duration: 430 },
+    );
+    anim.onfinish = anim.oncancel = () => this.playerCore.classList.remove("bumping");
   }
 }
