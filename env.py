@@ -83,6 +83,7 @@ class SokobanEnv(BaseEnv):
         self.max_steps = m.get("max_steps", 100)
         self.optimal_steps = m.get("optimal_steps", None)
         self.steps = 0
+        self.last_move_result = None
         return self._obs()
 
     def step(self, action):
@@ -92,6 +93,16 @@ class SokobanEnv(BaseEnv):
             invalid = not self._try_move(a)
         self.steps += 1
         won = self.player == self.goal
+        # Record feedback for the next observation
+        if won:
+            self.last_move_result = f"You moved {a} and REACHED THE GOAL!"
+        elif a not in DELTA:
+            self.last_move_result = f"'{a}' is not a valid direction. Use N, S, E, or W."
+        elif invalid:
+            self.last_move_result = f"You tried {a} but were BLOCKED — you did not move. Try a different direction."
+        else:
+            pr, pc = self.player
+            self.last_move_result = f"You moved {a} successfully. Now at row {pr}, col {pc}."
         reward = 1.0 if won else 0.0
         efficiency = round(self.optimal_steps / self.steps, 4) if (won and self.optimal_steps) else 0.0
         return StepResult(
@@ -255,13 +266,37 @@ class SokobanEnv(BaseEnv):
         dir_hint += ("" if dc == 0 else (f"{abs(dc)} col{'s' if abs(dc)>1 else ''} {'east' if dc>0 else 'west'}"))
         notes.append(f"Goal is {dir_hint} from you.")
 
+        # Show what each direction leads to so the agent never wastes moves on walls
+        move_info = []
+        for d in ["N", "S", "E", "W"]:
+            dd = DELTA[d]
+            t = (pr + dd[0], pc + dd[1])
+            terr = self._terr(t)
+            if terr == "wall":
+                move_info.append(f"{d}=WALL")
+            elif t in self.ramps:
+                rd = self.ramps[t]
+                move_info.append(f"{d}=ramp(faces {rd})")
+            elif t in self.boxes:
+                move_info.append(f"{d}=box")
+            elif terr == "high" and player_elev < ELEV["high"]:
+                move_info.append(f"{d}=CLIFF(blocked, need ramp)")
+            elif t == self.goal:
+                move_info.append(f"{d}=GOAL")
+            else:
+                move_info.append(f"{d}=open")
+        notes.append(f"Moves: {', '.join(move_info)}.")
+
         obs = {"description": " ".join(notes),
                "ascii": ascii_rows,
                "player": list(self.player),
                "goal": list(self.goal),
+               "steps_used": self.steps,
                "steps_remaining": self.max_steps - self.steps,
                "player_elevation": self._stand(self.player),
                "grid": grid}
         if self.optimal_steps is not None:
             obs["optimal_steps"] = self.optimal_steps
+        if self.last_move_result is not None:
+            obs["last_move_result"] = self.last_move_result
         return obs
