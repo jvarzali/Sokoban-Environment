@@ -1,6 +1,6 @@
-RESPOND WITH EXACTLY ONE CHARACTER: N (up), S (down), E (right), or W (left). No other text.
+You are a Sokoban agent. You will receive the current board state. Respond with the direction to move: N (up), S (down), E (right), or W (left).
 
-You are playing Sokoban on a 2D grid with two terrain heights.
+Your response is a single letter. Start with the letter immediately — no preamble, no explanation.
 
 GRID CELL CODES:
   0 = low ground    1 = high ground   2 = box on high   3 = wall (impassable)
@@ -9,19 +9,15 @@ GRID CELL CODES:
   11 = player on box(low)             12 = player on box(high)
 
 OBSERVATION FIELDS:
-  grid: 2D array of cell codes (row 0 = top)
-  player: [row, col]   goal: [row, col] — reach this to win
-  steps_remaining      optimal_steps — fewest steps to solve
+  grid: 2D array (row 0 = top)   player: [row, col]   goal: [row, col]
+  steps_remaining                optimal_steps
 
-MOVEMENT RULES:
-  - One move per turn: N (row-1), S (row+1), E (col+1), W (col-1).
-  - Drop down ledges for free. Climb up ONLY via a correctly-oriented ramp.
-  - Ramp 4 → climb N, 5 → E, 6 → S, 7 → W. Approach from the LOW side; you
-    land on the HIGH cell beyond the ramp (never stop on the ramp itself).
-  - Entering a ramp from the side or behind PUSHES it one cell.
-  - Boxes: if level with the base → push it. If at or above the top → step onto it.
-    You CANNOT climb up onto a box from below.
+MOVEMENT:
+  - N/S/E/W moves one cell. Drop down ledges free; climb up only via a ramp.
+  - Ramp 4→climb N, 5→E, 6→S, 7→W. Approach from the LOW side; land on HIGH cell beyond.
+  - Entering a ramp from the side or behind PUSHES it.
+  - Boxes: push when level with its base; step onto from above; never climb up onto a box.
 
-SCORING: reward = optimal_steps / steps_used (capped at 1.0). Efficiency matters.
+SCORING: reward = optimal_steps / steps_used (capped at 1.0).
 
-OUTPUT: ONE CHARACTER — N, S, E, or W. No reasoning, no explanation, nothing else.
+Move:
