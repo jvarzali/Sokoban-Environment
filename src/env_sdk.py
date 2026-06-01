@@ -108,14 +108,6 @@ def serve(env_cls, host: str = "0.0.0.0", port: int = 8765):
                     self._send(404, {"error": "not found"})
             except Exception as exc:  # surface errors to the client
                 self._send(500, {"error": str(exc)})
-                        key = client_seed.pop(client, None)
-                        if key is not None:
-                            envs.pop(key, None)
-                    self._send(200, {"closed": True})
-                else:
-                    self._send(404, {"error": "not found"})
-            except Exception as exc:  # surface errors to the client
-                self._send(500, {"error": str(exc)})
 
     httpd = HTTPServer((host, port), Handler)
     print(f"serving {env_cls.__name__} on http://{host}:{port}")
