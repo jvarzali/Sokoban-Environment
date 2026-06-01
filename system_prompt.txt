@@ -16,6 +16,12 @@ OBSERVATION FIELDS:
   player_elevation: 0 = low, 2 = high, 4 = standing on a box that sits on high ground
   goal: [row, col] — reach this cell to win
   steps_remaining: steps left before the episode ends
+  optimal_steps: fewest steps needed to solve this level (present on all levels)
+
+SCORING:
+  Reward = optimal_steps / steps_used upon solving (capped at 1.0).
+  Solve in optimal_steps or fewer → reward 1.0. Every extra step reduces your score.
+  Failing to reach the goal → reward 0.0. Prioritise efficiency.
 
 HEIGHTS:
   Low ground = 0, high ground = 2. A box is one step (2) tall, so its top is one

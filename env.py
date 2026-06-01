@@ -81,6 +81,7 @@ class SokobanEnv(BaseEnv):
             raise ValueError("map has no player (code 9)")
         self.goal = tuple(m["goal"])
         self.max_steps = m.get("max_steps", 100)
+        self.optimal_steps = m.get("optimal_steps", None)
         self.steps = 0
         return self._obs()
 
@@ -91,14 +92,19 @@ class SokobanEnv(BaseEnv):
             invalid = not self._try_move(a)
         self.steps += 1
         won = self.player == self.goal
+        if won and self.optimal_steps:
+            reward = min(1.0, self.optimal_steps / self.steps)
+        else:
+            reward = 1.0 if won else 0.0
         return StepResult(
             observation=self._obs(),
-            reward=1.0 if won else 0.0,
+            reward=reward,
             terminated=won,
             truncated=self.steps >= self.max_steps and not won,
             info={"success": "1.0" if won else "0.0",
                   "steps": str(self.steps),
-                  "invalid": "1.0" if invalid else "0.0"},
+                  "invalid": "1.0" if invalid else "0.0",
+                  "optimal_steps": str(self.optimal_steps) if self.optimal_steps else ""},
         )
 
     # --- geometry helpers ---
@@ -186,8 +192,11 @@ class SokobanEnv(BaseEnv):
                 elif cell in self.boxes:  row.append(2 if terr == "high" else 8)
                 else:                     row.append(1 if terr == "high" else 0)
             grid.append(row)
-        return {"grid": grid, "player": list(self.player),
-                "player_elevation": self._stand(self.player),
-                "goal": list(self.goal),
-                "steps_used": self.steps,
-                "steps_remaining": self.max_steps - self.steps}
+        obs = {"grid": grid, "player": list(self.player),
+               "player_elevation": self._stand(self.player),
+               "goal": list(self.goal),
+               "steps_used": self.steps,
+               "steps_remaining": self.max_steps - self.steps}
+        if self.optimal_steps is not None:
+            obs["optimal_steps"] = self.optimal_steps
+        return obs
