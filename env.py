@@ -39,16 +39,33 @@ MAPS = load_maps()
 _ACTION_RE = re.compile(
     r'\b(north|south|east|west|up|down|left|right|[nsew])\b', re.IGNORECASE
 )
+# Explicit action marker: "ACTION: E" anywhere in the response takes priority
+# so direction words in chain-of-thought reasoning don't get misinterpreted.
+_ACTION_MARKER_RE = re.compile(
+    r'\bACTION\s*:\s*([NSEW]|north|south|east|west|up|down|left|right)\b',
+    re.IGNORECASE
+)
 
 
 def _parse_action(raw: str) -> str:
-    """Extract the first direction token from a free-form agent response."""
+    """Extract the intended direction from a free-form agent response.
+
+    Priority order:
+    1. Explicit "ACTION: X" marker — lets the agent reason freely without
+       risk of direction words in the analysis being picked up as the move.
+    2. Exact single-token response (e.g. the agent just said "E").
+    3. First direction word found anywhere in the response.
+    """
     token = raw.strip()
-    # Fast path: exact single token
+    # 1. Explicit marker takes priority
+    m = _ACTION_MARKER_RE.search(token)
+    if m:
+        return ALIAS.get(m.group(1).lower(), m.group(1).upper())
+    # 2. Fast path: whole response is a single direction token
     direct = ALIAS.get(token.lower(), token.upper())
     if direct in DELTA:
         return direct
-    # Scan for the first direction word in a verbose response
+    # 3. First direction word
     m = _ACTION_RE.search(token)
     if m:
         return ALIAS.get(m.group().lower(), m.group().upper())
