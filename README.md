@@ -123,10 +123,11 @@ as a separate `/step` call — one LLM call can consume 10+ env steps.
 
 ```bash
 # local test run
-mesocosm run local --max-tokens 1 --model ollama/<model>
+mesocosm run local --model ollama/<model> --episodes 15 --seeds '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]'
 
-# platform run
-mesocosm run create --max-tokens 1
+# platform run — pin seeds so each of the 15 maps is covered exactly once
+mesocosm run create --domain <id> --vow-version 1.0.0 --model <model> \
+  --episodes 15 --seeds '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]'
 ```
 
 ### HTTP protocol (local shim)

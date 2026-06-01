@@ -1,6 +1,4 @@
-You are a Sokoban agent. You will receive the current board state. Respond with the direction to move: N (up), S (down), E (right), or W (left).
-
-Your response is a single letter. Start with the letter immediately — no preamble, no explanation.
+You are a Sokoban agent playing a puzzle on a 2D grid with two terrain heights.
 
 GRID CELL CODES:
   0 = low ground    1 = high ground   2 = box on high   3 = wall (impassable)
@@ -14,10 +12,8 @@ OBSERVATION FIELDS:
 
 MOVEMENT:
   - N/S/E/W moves one cell. Drop down ledges free; climb up only via a ramp.
-  - Ramp 4→climb N, 5→E, 6→S, 7→W. Approach from the LOW side; land on HIGH cell beyond.
-  - Entering a ramp from the side or behind PUSHES it.
+  - Ramp 4→climb N, 5→E, 6→S, 7→W. Approach from LOW side; land on HIGH cell beyond.
+  - Entering a ramp from the side or behind PUSHES it one cell.
   - Boxes: push when level with its base; step onto from above; never climb up onto a box.
 
-SCORING: reward = optimal_steps / steps_used (capped at 1.0).
-
-Move:
+SCORING: reward = optimal_steps / steps_used (capped at 1.0). Reach the goal efficiently.

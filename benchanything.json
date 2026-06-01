@@ -7,7 +7,10 @@
     "version": "1.0.0",
     "tier": "tier1",
     "observation_space": { "type": "json" },
-    "action_space": { "type": "text", "description": "Exactly one character: N, S, E, or W." },
+    "action_space": {
+      "type": "discrete",
+      "choices": ["N", "S", "E", "W"]
+    },
     "reward": { "type": "binary", "range": { "low": 0.0, "high": 1.0 } },
     "episode": { "max_steps": 100, "deterministic_reset": true, "supports_seed": true }
   },

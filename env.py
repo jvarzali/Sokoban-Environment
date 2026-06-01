@@ -199,5 +199,4 @@ class SokobanEnv(BaseEnv):
                "steps_remaining": self.max_steps - self.steps}
         if self.optimal_steps is not None:
             obs["optimal_steps"] = self.optimal_steps
-        obs["move"] = "N/S/E/W?"   # completion prompt: model fills in the direction
         return obs
