@@ -32,6 +32,7 @@ window.SOKOBAN_MAPS = [
       1,
       4
     ],
+    "optimal_steps": 3,
     "max_steps": 50
   },
   {
@@ -87,6 +88,7 @@ window.SOKOBAN_MAPS = [
       1,
       5
     ],
+    "optimal_steps": 10,
     "max_steps": 50
   },
   {
@@ -205,6 +207,7 @@ window.SOKOBAN_MAPS = [
       6,
       6
     ],
+    "optimal_steps": 8,
     "max_steps": 50
   },
   {
@@ -299,6 +302,7 @@ window.SOKOBAN_MAPS = [
       3,
       7
     ],
+    "optimal_steps": 9,
     "max_steps": 50
   },
   {
@@ -341,6 +345,7 @@ window.SOKOBAN_MAPS = [
       2,
       3
     ],
+    "optimal_steps": 3,
     "max_steps": 75
   },
   {
@@ -391,6 +396,7 @@ window.SOKOBAN_MAPS = [
       2,
       4
     ],
+    "optimal_steps": 5,
     "max_steps": 75
   },
   {
@@ -443,6 +449,7 @@ window.SOKOBAN_MAPS = [
       2,
       3
     ],
+    "optimal_steps": 6,
     "max_steps": 75
   },
   {
@@ -509,6 +516,7 @@ window.SOKOBAN_MAPS = [
       2,
       3
     ],
+    "optimal_steps": 7,
     "max_steps": 75
   },
   {
@@ -559,6 +567,7 @@ window.SOKOBAN_MAPS = [
       2,
       4
     ],
+    "optimal_steps": 2,
     "max_steps": 100
   },
   {
@@ -629,6 +638,7 @@ window.SOKOBAN_MAPS = [
       2,
       4
     ],
+    "optimal_steps": 8,
     "max_steps": 100
   },
   {
@@ -699,6 +709,7 @@ window.SOKOBAN_MAPS = [
       1,
       6
     ],
+    "optimal_steps": 6,
     "max_steps": 100
   },
   {
@@ -789,6 +800,7 @@ window.SOKOBAN_MAPS = [
       3,
       4
     ],
+    "optimal_steps": 10,
     "max_steps": 100
   },
   {
@@ -862,6 +874,7 @@ window.SOKOBAN_MAPS = [
       2,
       2
     ],
+    "optimal_steps": 8,
     "max_steps": 150
   },
   {
@@ -926,6 +939,7 @@ window.SOKOBAN_MAPS = [
       2,
       5
     ],
+    "optimal_steps": 12,
     "max_steps": 150
   },
   {
@@ -999,6 +1013,7 @@ window.SOKOBAN_MAPS = [
       5,
       1
     ],
+    "optimal_steps": 19,
     "max_steps": 150
   }
 ];
