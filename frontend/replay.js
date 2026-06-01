@@ -19,6 +19,18 @@ function parseAction(raw) {
   return "?";
 }
 
+// Explicit "ACTION: X" marker — takes priority, mirroring env.py's _parse_action.
+// With the text action space the agent reasons freely and ends with "ACTION: X",
+// so the recorded action is a whole paragraph; the marker is the move it committed.
+const ACTION_MARKER_RE = /\bACTION\s*:\s*(north|south|east|west|up|down|left|right|[nsew])\b/i;
+function parseAgentAction(raw) {
+  if (raw == null) return "?";
+  const t = String(raw).trim();
+  const m = ACTION_MARKER_RE.exec(t);
+  if (m) return ALIAS_MAP[m[1].toLowerCase()] || m[1].toUpperCase();
+  return parseAction(t);   // fallback: bare direction / first direction token
+}
+
 // Extract every direction token from a (potentially verbose) LLM response.
 function extractAllActions(text) {
   return [...text.matchAll(ACTION_RE_ALL)]
@@ -394,14 +406,20 @@ function buildEpisodeFramesFromTraces(traceEvents) {
 
   const frames = [];
   for (const stepNum of stepNums) {
-    const { action, result = {} } = byStep[stepNum];
-    if (!action) continue;
+    const { action: rawAction, result = {} } = byStep[stepNum];
+    if (!rawAction) continue;
 
-    // Thinking frame before this move.
+    // The recorded action is the agent's full response; parse out the committed
+    // move (ACTION: marker first) the same way env.py does. For old discrete runs
+    // this is already a bare "W" and parses through unchanged.
+    const act = parseAgentAction(rawAction);
+    const reasoning = String(rawAction).trim();
+
+    // Thinking frame before this move (shows the reasoning that produced it).
     frames.push({
       obs:        obsFromGame(game, initObs),
       action:     null,
-      reasoning:  null,
+      reasoning,
       isLLMStart: true,
       isInvalid:  false,
       terminated: false,
@@ -411,12 +429,12 @@ function buildEpisodeFramesFromTraces(traceEvents) {
 
     if (game.won) break;
 
-    const valid = game.move(action);
+    const valid = game.move(act);
 
     frames.push({
       obs:        obsFromGame(game, initObs),
-      action,
-      reasoning:  null,
+      action:     act,
+      reasoning,
       isLLMStart: false,
       isInvalid:  !valid,
       terminated: game.won,
