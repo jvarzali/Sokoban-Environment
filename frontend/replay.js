@@ -69,24 +69,22 @@ function obsFromGame(game, baseObs) {
 
 // Expand one LLM-call step into frames.
 //
-// Root cause of multi-step calls: the LLM outputs verbose reasoning containing
-// direction words ("West-facing ramp", "approach from East", "climb North…").
-// The platform treats every direction token in the response as a separate env
-// step and calls /step once per token, so one LLM call can consume 4–18 env
-// steps.  We detect this (afterObs.steps_used − baseObs.steps_used > 1) and
-// re-simulate each intermediate step with the local JS game engine so the
-// viewer shows every move instead of jumping from board_before to board_after.
+// Stale data: the board_after for the very first LLM call of each episode is
+// always from a different episode (platform export artifact). board_before at
+// step 1 is always correct (steps_used=0 = initial episode state). We detect
+// the mismatch by comparing goals/grid-dimensions. When they disagree we
+// simulate the action locally from board_before instead of trusting board_after.
 //
-// The board_before for the very first LLM call of an episode is often stale
-// (it carries the final state of the previous episode). We detect this by
-// comparing goals and grid dimensions; if they disagree we skip that frame so
-// the viewer never shows the wrong map.
+// Multi-step calls: with action_space.type="text" the platform executes every
+// direction token it finds in a verbose LLM response (4–18 steps per call).
+// We detect this (afterObs.steps_used − baseObs.steps_used > 1) and re-simulate
+// each step with the local JS engine so the viewer shows every move.
 function expandLLMStep(llmStep) {
-  const baseObs  = getObs(llmStep.board_before);   // may be null / stale
-  const afterObs = llmStep.board_after;             // flat obs from the export
+  const baseObs  = getObs(llmStep.board_before);   // always correct (steps_used=0)
+  const afterObs = llmStep.board_after;             // may be stale at step 1
   const reasoning = llmStep.reasoning || llmStep.action || "";
 
-  // Decide whether board_before is from the same map as board_after.
+  // Decide whether board_before and board_after are from the same map.
   const bg = baseObs?.goal, ag = afterObs?.goal;
   const sameMap = !!(
     baseObs?.grid && afterObs?.grid &&
@@ -97,8 +95,11 @@ function expandLLMStep(llmStep) {
 
   const frames = [];
 
-  // Thinking frame — only emit when board_before is from the correct map.
-  if (sameMap) {
+  // When board_after is stale (different map), use board_before as the source
+  // of truth and simulate the action locally — never show the wrong map.
+  if (!sameMap) {
+    if (!baseObs?.grid) return frames;
+    // Thinking frame: correct initial episode state.
     frames.push({
       obs: baseObs,
       action: null,
@@ -109,15 +110,47 @@ function expandLLMStep(llmStep) {
       truncated: false,
       reward: 0,
     });
+    // Simulate the action on the local engine so we show the result move.
+    const parsedAct = parseAction(llmStep.action || "");
+    if ("NSEW".includes(parsedAct)) {
+      const maxSteps = (baseObs.steps_used || 0) + (baseObs.steps_remaining || 100);
+      const game = new Sokoban({
+        name: "replay", grid: baseObs.grid, goal: baseObs.goal, max_steps: maxSteps,
+      });
+      const valid = game.move(parsedAct);
+      frames.push({
+        obs: obsFromGame(game, baseObs),
+        action: parsedAct,
+        reasoning,
+        isLLMStart: false,
+        isInvalid: !valid,
+        terminated: llmStep.terminated || false,
+        truncated:  llmStep.truncated  || false,
+        reward:     llmStep.reward     || 0,
+      });
+    }
+    return frames;
   }
+
+  // Same map: emit the thinking frame.
+  frames.push({
+    obs: baseObs,
+    action: null,
+    reasoning,
+    isLLMStart: true,
+    isInvalid: false,
+    terminated: false,
+    truncated: false,
+    reward: 0,
+  });
 
   // Detect multi-step: platform executed more than 1 env step from this LLM call.
   const beforeSteps = baseObs?.steps_used ?? 0;
   const afterSteps  = afterObs?.steps_used;
-  const numSteps    = (sameMap && afterSteps != null && afterSteps > beforeSteps)
+  const numSteps    = (afterSteps != null && afterSteps > beforeSteps)
     ? afterSteps - beforeSteps : 1;
 
-  if (sameMap && numSteps > 1) {
+  if (numSteps > 1) {
     // Re-simulate each intermediate step with the local game engine.
     // We extract direction tokens from the LLM reasoning in order — the same
     // tokens the platform parsed — and replay the first numSteps of them.
@@ -167,7 +200,7 @@ function expandLLMStep(llmStep) {
     return frames;
   }
 
-  // Single env-step (or stale board_before): original two-frame behavior.
+  // Single env-step: show board_after as the result frame.
   if (afterObs?.grid) {
     const parsedAction = parseAction(llmStep.action || "");
     const isInvalid = llmStep.info?.invalid === "1.0";
@@ -175,7 +208,7 @@ function expandLLMStep(llmStep) {
       obs: afterObs,
       action: "NSEW".includes(parsedAction) ? parsedAction : null,
       reasoning,
-      isLLMStart: !sameMap,   // mark as new-call start when we skipped thinking frame
+      isLLMStart: false,
       isInvalid,
       terminated: llmStep.terminated || false,
       truncated:  llmStep.truncated  || false,
