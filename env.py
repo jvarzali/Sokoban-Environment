@@ -84,6 +84,7 @@ class SokobanEnv(BaseEnv):
         self.optimal_steps = m.get("optimal_steps", None)
         self.steps = 0
         self.last_move_result = None
+        self.move_history = []  # list of "direction: result" strings, capped at 6
         return self._obs()
 
     def step(self, action):
@@ -103,6 +104,11 @@ class SokobanEnv(BaseEnv):
         else:
             pr, pc = self.player
             self.last_move_result = f"You moved {a} successfully. Now at row {pr}, col {pc}."
+        self.move_history.append(
+            f"{a}: {'GOAL!' if won else 'BLOCKED' if invalid else 'ok'}"
+        )
+        if len(self.move_history) > 6:
+            self.move_history.pop(0)
         reward = 1.0 if won else 0.0
         efficiency = round(self.optimal_steps / self.steps, 4) if (won and self.optimal_steps) else 0.0
         return StepResult(
@@ -299,4 +305,6 @@ class SokobanEnv(BaseEnv):
             obs["optimal_steps"] = self.optimal_steps
         if self.last_move_result is not None:
             obs["last_move_result"] = self.last_move_result
+        if self.move_history:
+            obs["move_history"] = self.move_history
         return obs
