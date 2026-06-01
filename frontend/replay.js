@@ -296,6 +296,75 @@ document.getElementById("replayFile").addEventListener("change", (e) => {
   reader.readAsText(file);
 });
 
+// Build frames directly from the raw trace events for one episode.
+// The traces section contains one entry per env step (not per LLM call), so
+// every action is present even when the LLM produced multiple direction tokens.
+// Each step contributes two frames: a "thinking" frame showing what the agent
+// saw, then an "action" frame showing the move taken and its outcome.
+function buildEpisodeFramesFromTraces(traceEvents) {
+  // Sort by step number then timestamp so events are in execution order.
+  const sorted = [...traceEvents].sort((a, b) =>
+    a.step !== b.step ? a.step - b.step : (a.timestamp < b.timestamp ? -1 : 1));
+
+  // Find the initial board state (phase:"start" observation at step 0).
+  const startEvt = sorted.find(e =>
+    e.event_type === "observation" && e.payload?.phase === "start");
+  const initObs = startEvt?.payload?.data?.observation || startEvt?.payload?.data;
+  if (!initObs?.grid) return null;  // fall back to replay-based builder
+
+  // Group events by their step number.
+  const byStep = {};
+  for (const e of sorted) {
+    if (!byStep[e.step]) byStep[e.step] = [];
+    byStep[e.step].push(e);
+  }
+
+  const frames = [];
+  const stepNums = Object.keys(byStep).map(Number).sort((a, b) => a - b).filter(s => s >= 1);
+
+  for (const stepNum of stepNums) {
+    const evts = byStep[stepNum];
+    const beforeEvt = evts.find(e => e.event_type === "observation" && e.payload?.phase === "before_agent");
+    const actionEvt = evts.find(e => e.event_type === "action");
+    const resultEvt = evts.find(e => e.event_type === "step_result");
+
+    if (!actionEvt) continue;
+
+    const obs    = beforeEvt?.payload?.data?.observation || beforeEvt?.payload?.data || initObs;
+    const action = actionEvt.payload?.action;
+    const result = resultEvt?.payload || {};
+
+    // Thinking frame: what the agent saw before deciding.
+    frames.push({
+      obs,
+      action:     null,
+      reasoning:  null,
+      isLLMStart: true,
+      isInvalid:  false,
+      terminated: false,
+      truncated:  false,
+      reward:     0,
+    });
+
+    // Action frame: the move taken and its outcome, still showing pre-move board
+    // so the player position reflects where the agent was standing when it acted.
+    frames.push({
+      obs,
+      action,
+      reasoning:  null,
+      isLLMStart: false,
+      isInvalid:  result.info?.invalid === "1.0",
+      terminated: result.terminated || false,
+      truncated:  result.truncated  || false,
+      reward:     result.reward     || 0,
+    });
+
+    if (result.terminated || result.truncated) break;
+  }
+
+  return frames.length ? frames : null;
+}
+
 // Build all frames for one episode by anchoring to the initial board state
 // and simulating every action locally — never trusting exported board_before /
 // board_after data after step 1, which is often from a different episode.
@@ -373,9 +442,13 @@ function buildEpisodes() {
     epMeta[ep.id] = ep;
   }
   episodes = [];
+  const tracesMap = replayData.traces || {};
   for (const [id, rawSteps] of Object.entries(replayData.replay || {})) {
     const meta  = epMeta[id] || {};
-    const steps = buildEpisodeFrames(rawSteps);
+    // Prefer traces (per-env-step resolution) over replay (per-LLM-call).
+    // Fall back to buildEpisodeFrames when traces are absent or yield nothing.
+    const steps = (tracesMap[id] && buildEpisodeFramesFromTraces(tracesMap[id]))
+               || buildEpisodeFrames(rawSteps);
     const won = meta.terminal_info?.success === "1.0" || meta.total_reward >= 1.0;
     episodes.push({ id, seed: meta.seed ?? "?", won, steps });
   }
