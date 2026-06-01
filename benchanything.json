@@ -2,27 +2,64 @@
   "adapter": "adapter.py",
   "name": "Sokoban",
   "description": "Top-down two-height maze. Cross ramps (locked orientation) to climb the one height step; drop down ledges for free. Push boxes (incl. off ledges), or stand on top of a box (a box is one step tall) to cross at the higher level, though you can never climb up onto a box from below. Clear a path and reach the goal cell.",
-  "system_prompt": "You are playing Sokoban. Each turn you receive a JSON observation and must choose one move: N (up), S (down), E (right), or W (left).\n\nHOW TO READ THE OBSERVATION:\n  - \"ascii\"       — a visual map of the board. USE THIS to understand the layout.\n  - \"description\" — plain English describing your position, the goal, and exact ramp instructions. READ THIS CAREFULLY.\n  - \"player\"      — your [row, col] coordinates (row 0 = top)\n  - \"goal\"        — the [row, col] you must reach to win\n  - \"steps_remaining\" — how many moves you have left\n  - \"optimal_steps\"   — the minimum steps needed to solve this level\n  (Ignore \"grid\" — it is a raw numeric encoding, the ascii and description are easier to use.)\n\nMAP SYMBOLS:\n  #  wall — impassable\n  .  low ground\n  H  high ground — cannot step up onto from low ground without a ramp\n  @  you on low ground\n  P  you on high ground\n  Q  you on top of a box\n  G  GOAL on low ground — walk here to win\n  *  GOAL on HIGH ground — must use a ramp to climb up first\n  ^  ramp: climb North through it\n  >  ramp: climb East through it\n  v  ramp: climb South through it\n  <  ramp: climb West through it\n  b  box on low ground\n  B  box on high ground\n\nHEIGHT RULES:\n  - Moving to same height or lower is always free.\n  - Moving UP onto high ground requires a ramp — you cannot step up a ledge directly.\n  - To use a ramp: stand on the LOW side, move in the ramp's direction, you skip over the ramp and land on the HIGH cell beyond it.\n    The \"description\" field tells you the EXACT cell to stand on and the EXACT move to make.\n\nBOXES:\n  - Same height as box base → PUSH the box one cell in that direction.\n  - Higher than box top → STEP ONTO the box (can walk across box tops).\n  - You can NEVER climb up onto a box from below — only ramps give height.\n  - Boxes can be pushed off ledges to clear paths.\n\nGOAL:\n  - Reach the cell marked G (low) or * (high) to win.\n  - If the goal is * (high ground), you MUST use a ramp. The description tells you exactly how.\n  - You receive a reward of 1.0 for winning. Solve in fewer steps for a better efficiency score.",
+  "system_prompt": "You are playing Sokoban. Each turn you receive a JSON observation. You MUST respond with exactly one letter: N, S, E, or W.\n\nYOUR ONLY OUTPUT should be a single letter: N (north/up), S (south/down), E (east/right), or W (west/left).\nDo not explain. Do not ask questions. Just output one letter.\n\nREADING THE OBSERVATION \u2014 use whichever fields are present:\n\nIf \"description\" is present: read it carefully \u2014 it tells you your position, the goal location, and exact ramp instructions.\nIf \"ascii\" is present: it is a visual map of the board. Read it to understand layout.\nIf only \"grid\" is present: it is a 2D array of cell codes:\n  0 = low ground (walkable)   1 = high ground (need ramp to climb up)\n  3 = wall (blocked)          4 = ramp climbs N   5 = ramp climbs E\n  6 = ramp climbs S           7 = ramp climbs W\n  8 = box on low ground       2 = box on high ground\n  9 = YOU on low ground      10 = YOU on high ground\n\n\"player\" = your [row, col].  \"goal\" = the [row, col] you must reach to win.\n\"steps_remaining\" = moves left.  \"last_move_result\" = what happened last turn (read this!).\n\nMAP SYMBOLS (if ascii is present):\n  # wall   . low ground   H high ground   @ you(low)   P you(high)\n  G GOAL(low)   * GOAL(high \u2014 need ramp)\n  ^ ramp climbs N   > ramp climbs E   v ramp climbs S   < ramp climbs W\n  b box(low)   B box(high)\n\nHEIGHT RULES:\n  - Moving to same height or lower: always free.\n  - Moving UP onto high ground: requires a ramp \u2014 you cannot step up a cliff directly.\n  - To use ramp: stand on the LOW side, move in the ramp's direction \u2192 you land on the HIGH cell beyond it.\n  - If description is present it tells you the EXACT cell to stand on and move to make.\n\nBOXES:\n  - At box's base level \u2192 PUSH the box one cell.\n  - Above box top \u2192 STEP ONTO the box (walk across box tops).\n  - You can NEVER climb up onto a box from below.\n\nSTRATEGY:\n  - Check \"last_move_result\" \u2014 if you were BLOCKED, try a different direction.\n  - Move toward the goal. If goal is on high ground, find and use a ramp first.\n  - If stuck, try all 4 directions systematically rather than repeating the same one.\n\nREMEMBER: Output ONLY one letter \u2014 N, S, E, or W. Nothing else.\n",
   "binding_vow": {
     "id": "mountain-sokoban-v1",
     "version": "1.0.0",
     "tier": "tier1",
-    "observation_space": { "type": "json" },
+    "observation_space": {
+      "type": "json"
+    },
     "action_space": {
       "type": "discrete",
-      "enum_values": ["N", "S", "E", "W"]
+      "enum_values": [
+        "N",
+        "S",
+        "E",
+        "W"
+      ]
     },
-    "reward": { "type": "binary", "range": { "low": 0.0, "high": 1.0 } },
-    "episode": { "max_steps": 100, "deterministic_reset": true, "supports_seed": true }
+    "reward": {
+      "type": "binary",
+      "range": {
+        "low": 0.0,
+        "high": 1.0
+      }
+    },
+    "episode": {
+      "max_steps": 100,
+      "deterministic_reset": true,
+      "supports_seed": true
+    }
   },
   "scoring": {
     "primary_metric": "success_rate",
     "higher_is_better": true,
     "metrics": [
-      { "name": "success_rate", "type": "terminal_field", "field": "success",    "aggregation": "pass_rate" },
-      { "name": "efficiency",   "type": "terminal_field", "field": "efficiency", "aggregation": "mean" },
-      { "name": "avg_steps",    "type": "terminal_field", "field": "steps",      "aggregation": "mean" },
-      { "name": "invalid_rate", "type": "terminal_field", "field": "invalid",    "aggregation": "mean" }
+      {
+        "name": "success_rate",
+        "type": "terminal_field",
+        "field": "success",
+        "aggregation": "pass_rate"
+      },
+      {
+        "name": "efficiency",
+        "type": "terminal_field",
+        "field": "efficiency",
+        "aggregation": "mean"
+      },
+      {
+        "name": "avg_steps",
+        "type": "terminal_field",
+        "field": "steps",
+        "aggregation": "mean"
+      },
+      {
+        "name": "invalid_rate",
+        "type": "terminal_field",
+        "field": "invalid",
+        "aggregation": "mean"
+      }
     ]
   }
 }
