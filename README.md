@@ -81,11 +81,16 @@ boards.
 
 Controls: an episode/seed picker, ◀ / ▶ per-move stepping (or the <kbd>←</kbd>
 <kbd>→</kbd> keys), **▶ Play** for one level and **⏭ Auto-play** through every
-level, and a speed slider. Each step shows the agent's **reasoning** for that move,
-and an **invalid move flashes the ball red and bounces it** off the blocked cell.
-Wins pop a banner with confetti. The 3D view (Three.js, vendored in
+level, and a speed slider. Each step shows the agent's **reasoning** for that move
+(it ends with `ACTION: X`, and the reward shown is the efficiency value the move
+earned), and an **invalid move flashes the ball red and bounces it** off the blocked
+cell. Wins pop a banner with confetti. The 3D view (Three.js, vendored in
 `frontend/vendor/`, no internet needed) orbits/zooms and tweens the player up ramps
 and boxes off ledges.
+
+The layout is **resizable**: drag the handle above the bottom panel to grow/shrink
+it (the reasoning box grows with it), and in **Split** mode drag the divider between
+the 2D and 3D views. Both are clamped so neither side can get too small.
 
 **Serve it over HTTP — don't open the file directly.** The app uses ES modules,
 which browsers block on `file://`:
@@ -102,6 +107,7 @@ frontend/
   index.html      # the replay viewer (2D / 3D / Split toggle)
   app.js          # view controller: owns the 2D + 3D renderers, view toggle
   replay.js       # loads run-export JSON, builds per-move frames, drives playback
+  resize.js       # drag-to-resize the bottom pane and the 2D|3D split divider
   game.js         # engine: JS port of env.py (also used by parity_test)
   view2d.js       # 2D grid renderer         view3d.js # 3D Three.js renderer
   maps.js         # bundled maps             build_maps.py # regenerates maps.js
@@ -129,10 +135,10 @@ python adapter.py --host 127.0.0.1 --port 8765
 
 ### Mesocosm benchmark runs
 
-The action space is `text` (vow `2.0.0`): the agent writes its reasoning, then
+The action space is `text` (vow `2.1.0`): the agent writes its reasoning, then
 ends with `ACTION: X` (`env.py` parses the marker). This avoids the platform's
 forced structured-output path, which suppresses chain-of-thought on discrete
-action spaces.
+action spaces. The reward is `scalar`, proportional to efficiency (see Rules).
 
 ```bash
 # validate the manifest against platform policy
@@ -145,8 +151,8 @@ mesocosm run local --manifest benchanything.json \
 # publish/update the env on the platform (pulls the pushed repo)
 mesocosm env submit --name Sokoban --github-url <repo-url>
 
-# platform run — vow 2.0.0, pass system_prompt so the agent knows the game rules
-mesocosm run create --domain <id> --vow-version 2.0.0 --model <model> \
+# platform run — vow 2.1.0, pass system_prompt so the agent knows the game rules
+mesocosm run create --domain <id> --vow-version 2.1.0 --model <model> \
   --episodes 15 \
   --system-prompt "$(cat system_prompt.txt)"
 ```
