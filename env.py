@@ -218,20 +218,31 @@ class SokobanEnv(BaseEnv):
         elev_name = {0: "low ground", 2: "high ground", 4: "top of a box"}.get(player_elev, "unknown")
         goal_elev_name = "high ground" if goal_on_high else "low ground"
 
-        notes = [f"Player (@) at row {pr}, col {pc} on {elev_name}."]
+        player_sym = 'P' if player_elev == 2 else ('Q' if player_elev == 4 else '@')
+        notes = [f"Player ({player_sym}) at row {pr}, col {pc} on {elev_name}."]
         if goal_on_high:
             notes.append(f"Goal (*) at row {gr}, col {gc} on HIGH ground — you cannot walk there directly, you must use a ramp to climb up.")
         else:
             notes.append(f"Goal (G) at row {gr}, col {gc} on low ground — walk there to win.")
 
-        _OPP_STEP = {"N": (1, 0), "S": (-1, 0), "E": (0, -1), "W": (0, 1)}
-        _LAND_STEP = {"N": (-1, 0), "S": (1, 0), "E": (0, 1), "W": (0, -1)}
+        _OPP_STEP  = {"N": (1, 0),  "S": (-1, 0), "E": (0, -1), "W": (0, 1)}
+        _LAND_STEP = {"N": (-1, 0), "S": (1, 0),  "E": (0, 1),  "W": (0, -1)}
         for (r, c), d in sorted(self.ramps.items()):
-            sr, sc = r + _OPP_STEP[d][0], c + _OPP_STEP[d][1]
+            sr, sc = r + _OPP_STEP[d][0],  c + _OPP_STEP[d][1]
             lr, lc = r + _LAND_STEP[d][0], c + _LAND_STEP[d][1]
-            notes.append(
-                f"Ramp ({_SYM[DIR_RAMP[d]]}) at [{r},{c}] climbs {d}: "
-                f"stand at [{sr},{sc}] and move {d} — you land on high ground at [{lr},{lc}].")
+            land_in   = self._in((lr, lc))
+            land_high = land_in and self.terrain[lr][lc] == "high"
+            sym = _SYM[DIR_RAMP[d]]
+            if land_high:
+                notes.append(
+                    f"Ramp ({sym}) at [{r},{c}] climbs {d}: "
+                    f"stand at [{sr},{sc}] and move {d} — you land on high ground at [{lr},{lc}].")
+            else:
+                notes.append(
+                    f"Ramp ({sym}) at [{r},{c}] faces {d} but its landing cell [{lr},{lc}] is "
+                    f"low ground — this ramp is NOT usable for climbing in its current position. "
+                    f"Push it to a new position by approaching it from the side (N or S if the ramp "
+                    f"faces E/W, or E/W if the ramp faces N/S) so that it faces high ground.")
 
         for (r, c) in sorted(self.boxes):
             t = "high" if self.terrain[r][c] == "high" else "low"

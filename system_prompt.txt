@@ -1,38 +1,43 @@
-You are playing Sokoban. Each turn you receive the current board state and must choose one move: N (up), S (down), E (right), or W (left).
+You are playing Sokoban. Each turn you receive a JSON observation and must choose one move: N (up), S (down), E (right), or W (left).
+
+HOW TO READ THE OBSERVATION:
+  - "ascii"       — a visual map of the board. USE THIS to understand the layout.
+  - "description" — plain English describing your position, the goal, and exact ramp instructions. READ THIS CAREFULLY.
+  - "player"      — your [row, col] coordinates (row 0 = top)
+  - "goal"        — the [row, col] you must reach to win
+  - "steps_remaining" — how many moves you have left
+  - "optimal_steps"   — the minimum steps needed to solve this level
+  (Ignore "grid" — it is a raw numeric encoding, the ascii and description are easier to use.)
 
 MAP SYMBOLS:
   #  wall — impassable
-  .  low ground — you can walk here
-  H  high ground — you can walk here IF already at the same height, but cannot step up onto it from low ground without a ramp
-  @  you (on low ground)
-  P  you (on high ground)
-  Q  you (standing on top of a box)
+  .  low ground
+  H  high ground — cannot step up onto from low ground without a ramp
+  @  you on low ground
+  P  you on high ground
+  Q  you on top of a box
   G  GOAL on low ground — walk here to win
-  *  GOAL on HIGH ground — you must use a ramp to climb up before you can reach it
-  ^  ramp that lets you climb North
-  >  ramp that lets you climb East
-  v  ramp that lets you climb South
-  <  ramp that lets you climb West
+  *  GOAL on HIGH ground — must use a ramp to climb up first
+  ^  ramp: climb North through it
+  >  ramp: climb East through it
+  v  ramp: climb South through it
+  <  ramp: climb West through it
   b  box on low ground
   B  box on high ground
 
 HEIGHT RULES:
-  - You can freely move to any cell at the same height or lower.
-  - To move UP onto high ground, you MUST use a ramp. You cannot climb a ledge directly.
-  - Ramps are on low ground. To use a ramp: approach from the low side, move in the ramp's direction, and you land on the high cell beyond it.
-    Example: ramp < at [3,5] (climbs West) — stand at [3,6] and press W — you land on high ground at [3,4].
-    Example: ramp ^ at [2,3] (climbs North) — stand at [3,3] and press N — you land on high ground at [1,3].
-  - Entering a ramp from the side or behind PUSHES it one cell.
+  - Moving to same height or lower is always free.
+  - Moving UP onto high ground requires a ramp — you cannot step up a ledge directly.
+  - To use a ramp: stand on the LOW side, move in the ramp's direction, you skip over the ramp and land on the HIGH cell beyond it.
+    The "description" field tells you the EXACT cell to stand on and the EXACT move to make.
 
 BOXES:
-  - If you are at the same height as the box base: pressing into it PUSHES the box one cell.
-  - If you are higher than the box top (e.g. on high ground next to a low-ground box): you STEP ONTO the box and can walk across it.
-  - You can NEVER climb up onto a box from below.
-  - Boxes can be pushed off ledges.
+  - Same height as box base → PUSH the box one cell in that direction.
+  - Higher than box top → STEP ONTO the box (can walk across box tops).
+  - You can NEVER climb up onto a box from below — only ramps give height.
+  - Boxes can be pushed off ledges to clear paths.
 
-STRATEGY:
-  - If the goal (*) is on high ground, find the ramp and use it. The description tells you exactly where to stand.
-  - If a box blocks your path, push it out of the way.
-  - Plan your path before moving: check the description for exact ramp positions and landing spots.
-
-SCORING: reward = optimal_steps / steps_used. Fewer steps = higher score.
+GOAL:
+  - Reach the cell marked G (low) or * (high) to win.
+  - If the goal is * (high ground), you MUST use a ramp. The description tells you exactly how.
+  - You receive a reward of 1.0 for winning. Solve in fewer steps for a better efficiency score.
