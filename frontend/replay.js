@@ -242,31 +242,93 @@ let replayPlaying = false;
 let replayTimer   = null;
 let replaySpeed   = 2;
 
+let playMode    = null;     // "single" (this level) | "all" (every level)
+let shownEndKey = null;     // guards one popup per arrival at a level's final frame
+let resultTimer = null;
+const RESULT_MS = 2600;     // how long the end-of-level popup stays up
+
 function replayInterval() { return 600 / replaySpeed; }
 
-function startAutoPlay() {
+function startPlay(modeName) {
+  if (!episodes.length) return;
+  playMode = modeName;
   replayPlaying = true;
-  replayPlayBtn.textContent = "⏸ Pause replay";
-  tickAutoPlay();
+  updatePlayButtons();
+  const ep = episodes[epIndex];
+  if (ep && stepIndex >= ep.steps.length - 1) { stepIndex = 0; renderReplay(); }   // restart if at end
+  tickPlay();
 }
 
-function stopAutoPlay() {
+function stopPlay() {
   replayPlaying = false;
+  playMode = null;
   clearTimeout(replayTimer);
-  replayPlayBtn.textContent = "▶ Auto-play";
+  updatePlayButtons();
 }
 
-function tickAutoPlay() {
+function updatePlayButtons() {
+  replayPlayBtn.textContent = (replayPlaying && playMode === "single") ? "⏸ Pause" : "▶ Play";
+  replayAutoBtn.textContent = (replayPlaying && playMode === "all")    ? "⏸ Pause" : "⏭ Auto-play";
+}
+
+function tickPlay() {
   clearTimeout(replayTimer);
   if (!replayPlaying) return;
   const ep = episodes[epIndex];
-  if (!ep || stepIndex >= ep.steps.length - 1) { stopAutoPlay(); return; }
-  // Stop if the current frame already signals episode end.
+  if (!ep) { stopPlay(); return; }
+  if (stepIndex >= ep.steps.length - 1) { onEnd(); return; }   // already at the final frame
+  stepFwd();                                                    // render next frame (may pop/confetti)
   const cur = ep.steps[stepIndex];
-  if (cur && (cur.terminated || cur.truncated)) { stopAutoPlay(); return; }
-  stepFwd();
-  replayTimer = setTimeout(tickAutoPlay, replayInterval());
+  if (stepIndex >= ep.steps.length - 1 || (cur && (cur.terminated || cur.truncated))) {
+    onEnd();
+  } else {
+    replayTimer = setTimeout(tickPlay, replayInterval());
+  }
 }
+
+// End of an episode during playback. The win/fail popup + confetti were already
+// shown by renderReplay; decide what happens next.
+function onEnd() {
+  clearTimeout(replayTimer);
+  if (playMode === "all") {
+    replayTimer = setTimeout(() => {
+      if (!replayPlaying) return;
+      if (epIndex < episodes.length - 1) {
+        epIndex++; stepIndex = 0; renderReplay();
+        tickPlay();                  // roll into the next level
+      } else {
+        stopPlay();                  // finished the last level
+      }
+    }, RESULT_MS + 250);
+  } else {
+    stopPlay();                      // single level: stop, leave the popup up
+  }
+}
+
+function gotoLevel(delta) {
+  stopPlay();
+  if (!episodes.length) return;
+  epIndex = Math.max(0, Math.min(episodes.length - 1, epIndex + delta));
+  stepIndex = 0;
+  renderReplay();
+}
+
+// ── end-of-level popup + confetti ────────────────────────────────────────────
+function maybeCelebrate(ep) {
+  const key = `${epIndex}`;
+  if (key === shownEndKey) return;          // already shown for this level's end
+  shownEndKey = key;
+  if (ep.won && window.appCelebrate) window.appCelebrate();
+  showResult(ep.won);
+}
+function showResult(won) {
+  if (!resultPopup) return;
+  resultPopup.textContent = won ? "🎉 Level completed!" : "✗ Level failed";
+  resultPopup.className = won ? "show win" : "show fail";
+  clearTimeout(resultTimer);
+  resultTimer = setTimeout(hideResult, RESULT_MS);
+}
+function hideResult() { if (resultPopup) resultPopup.className = ""; }
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 const replayBoard   = document.getElementById("replayBoard");
@@ -279,6 +341,10 @@ const replayInfo    = document.getElementById("replayInfo");
 const replayPrev    = document.getElementById("replayPrev");
 const replayNext    = document.getElementById("replayNext");
 const replayPlayBtn = document.getElementById("replayPlayBtn");
+const replayAutoBtn = document.getElementById("replayAutoBtn");
+const replayLevelPrev = document.getElementById("replayLevelPrev");
+const replayLevelNext = document.getElementById("replayLevelNext");
+const resultPopup   = document.getElementById("resultPopup");
 
 // ── load ───────────────────────────────────────────────────────────────────
 document.getElementById("replayFile").addEventListener("change", (e) => {
@@ -472,7 +538,7 @@ function buildEpisodes() {
 
 // ── navigation ─────────────────────────────────────────────────────────────
 replayEpSel.addEventListener("change", (e) => {
-  stopAutoPlay();
+  stopPlay();
   epIndex = Number(e.target.value);
   stepIndex = 0;
   renderReplay();
@@ -482,20 +548,24 @@ replayEpSel.addEventListener("keydown", (e) => {
       e.key === "ArrowUp"   || e.key === "ArrowDown") {
     e.preventDefault();
     e.stopPropagation();
+    stopPlay();
     if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   stepBack();
     if (e.key === "ArrowRight" || e.key === "ArrowDown") stepFwd();
     replayEpSel.value = String(epIndex);
   }
 });
-replayPrev.addEventListener("click", () => { stopAutoPlay(); stepBack(); replayPrev.focus(); });
-replayNext.addEventListener("click", () => { stopAutoPlay(); stepFwd();  replayNext.focus(); });
+replayPrev.addEventListener("click", () => { stopPlay(); stepBack(); replayPrev.focus(); });
+replayNext.addEventListener("click", () => { stopPlay(); stepFwd();  replayNext.focus(); });
+replayLevelPrev.addEventListener("click", () => gotoLevel(-1));
+replayLevelNext.addEventListener("click", () => gotoLevel(1));
+// Play = run THIS level from file; Auto-play = run through every level one by one
 replayPlayBtn.addEventListener("click", () => {
-  if (!episodes.length) return;
-  if (replayPlaying) { stopAutoPlay(); return; }
-  // If at the end of an episode, restart from the beginning
-  const ep = episodes[epIndex];
-  if (ep && stepIndex >= ep.steps.length - 1) { stepIndex = 0; renderReplay(); }
-  startAutoPlay();
+  if (replayPlaying && playMode === "single") { stopPlay(); return; }
+  startPlay("single");
+});
+replayAutoBtn.addEventListener("click", () => {
+  if (replayPlaying && playMode === "all") { stopPlay(); return; }
+  startPlay("all");
 });
 document.getElementById("replaySpeed").addEventListener("input", (e) => {
   replaySpeed = Number(e.target.value);
@@ -508,6 +578,7 @@ document.addEventListener("keydown", (e) => {
   if (tag === "INPUT") return;
   e.preventDefault();
   e.stopPropagation();
+  stopPlay();
   if (e.key === "ArrowLeft")  stepBack();
   if (e.key === "ArrowRight") stepFwd();
 });
@@ -606,6 +677,14 @@ function renderReplay() {
   } else {
     replayStatus.textContent = `Seed ${ep.seed} — env step ${obs.steps_used ?? "?"}`;
     replayStatus.className = "status";
+  }
+
+  // End-of-level popup + confetti (once per arrival at the final frame)
+  if (stepIndex === total - 1) {
+    maybeCelebrate(ep);
+  } else {
+    shownEndKey = null;
+    hideResult();
   }
 }
 

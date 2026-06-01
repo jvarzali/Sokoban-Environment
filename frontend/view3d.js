@@ -62,6 +62,7 @@ export class View3D {
       player: new THREE.SphereGeometry(0.28, 24, 18),
       goal: new THREE.TorusGeometry(0.34, 0.05, 12, 28),
       ramp: makeRampGeo(),
+      conf: new THREE.PlaneGeometry(0.13, 0.19),
     };
     this.mat = {
       low: new THREE.MeshStandardMaterial({ color: COL.low, roughness: 0.95 }),
@@ -90,6 +91,7 @@ export class View3D {
   build(engine) {
     this._finishAnim();
     this._bump = null;
+    if (this._confetti) { this.scene.remove(this._confetti.group); this._confetti = null; }
     this.engine = engine;
     if (this.boardGroup) this.scene.remove(this.boardGroup);
     this.boardGroup = new THREE.Group();
@@ -164,10 +166,10 @@ export class View3D {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     const aspect = (w && h) ? w / h : 1.6;
     const center = new THREE.Vector3(0, 0.4, 0);
-    const R = 0.5 * Math.hypot(this.cols, this.rows) + 1.1;     // bounding radius + margin
+    const R = 0.5 * Math.hypot(this.cols, this.rows) + 0.65;    // bounding radius (+ block/entity height)
     const vHalf = THREE.MathUtils.degToRad(this.camera.fov) / 2;
     const hHalf = Math.atan(Math.tan(vHalf) * aspect);
-    const D = (R * 1.12) / Math.sin(Math.min(vHalf, hHalf));    // fit width & height
+    const D = (R * 1.04) / Math.sin(Math.min(vHalf, hHalf));    // pull back just enough to fill the view
     const az = this._framed ? this.controls.getAzimuthalAngle() : Math.PI * 0.25;
     this.controls.target.copy(center);
     this.controls.minDistance = this.controls.maxDistance = D;
@@ -236,6 +238,47 @@ export class View3D {
 
   isBusy() { return !!this.anim; }
 
+  // celebratory confetti burst around the player
+  confetti() {
+    if (!this.playerMesh) return;
+    const origin = this.playerMesh.position.clone();
+    origin.y += 0.25;
+    const colors = [0xffd166, 0x6c8cff, 0x5fd08a, 0xff7aa2, 0xffa94d, 0x8aa2ff];
+    const group = new THREE.Group();
+    const parts = [];
+    for (let i = 0; i < 34; i++) {
+      const m = new THREE.Mesh(this.geo.conf,
+        new THREE.MeshBasicMaterial({ color: colors[i % colors.length], side: THREE.DoubleSide, transparent: true }));
+      m.position.copy(origin);
+      const a = Math.random() * Math.PI * 2;
+      m.userData.v = new THREE.Vector3(Math.cos(a) * (0.7 + Math.random() * 1.6),
+                                       1.6 + Math.random() * 2.0,
+                                       Math.sin(a) * (0.7 + Math.random() * 1.6));
+      m.userData.rot = new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
+      group.add(m); parts.push(m);
+    }
+    this.scene.add(group);
+    this._confetti = { group, parts, t: 0, dur: 1.5 };
+  }
+
+  _advanceConfetti(dt) {
+    const c = this._confetti;
+    c.t += dt;
+    for (const m of c.parts) {
+      const v = m.userData.v;
+      v.y -= 6.0 * dt;                          // gravity
+      m.position.addScaledVector(v, dt);
+      m.rotation.x += m.userData.rot.x * dt;
+      m.rotation.y += m.userData.rot.y * dt;
+      m.material.opacity = Math.max(0, 1 - c.t / c.dur);
+    }
+    if (c.t >= c.dur) {
+      this.scene.remove(c.group);
+      for (const m of c.parts) m.material.dispose();
+      this._confetti = null;
+    }
+  }
+
   // illegal move: nudge the player toward the blocked cell, flash red, spring back
   bump(dir) {
     if (!this.playerMesh) return;
@@ -275,6 +318,7 @@ export class View3D {
     this.controls.update();
     if (this.anim) this._advance(dt);
     else if (this._bump) this._advanceBump(dt);
+    if (this._confetti) this._advanceConfetti(dt);
     if (this.engine) this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this._loop);
   }

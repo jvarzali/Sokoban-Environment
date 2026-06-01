@@ -20,9 +20,12 @@ export class View2D {
   _fit() {
     const cols = Math.max(...this.engine.rowlen), rows = this.engine.nrows;
     const parent = this.boardEl.parentElement;
-    const avail = parent ? Math.min(parent.clientWidth - 24, parent.clientHeight - 24) : 480;
+    const pad = 16;   // keep a little breathing room off the panel edges
+    const availW = parent ? parent.clientWidth - pad : 480;
+    const availH = parent ? parent.clientHeight - pad : 480;
     this.cols = cols; this.rows = rows;
-    this.cell = Math.max(20, Math.min(76, Math.floor((avail || 480) / Math.max(rows, cols))));
+    // largest square cell that fits the panel in both dimensions -> fills it
+    this.cell = Math.max(8, Math.floor(Math.min(availW / cols, availH / rows)));
     this.boardEl.style.position = "relative";
     this.boardEl.style.width = `${cols * this.cell}px`;
     this.boardEl.style.height = `${rows * this.cell}px`;
@@ -157,5 +160,37 @@ export class View2D {
       { duration: 430 },
     );
     anim.onfinish = anim.oncancel = () => this.playerCore.classList.remove("bumping");
+  }
+
+  // celebratory confetti burst around the player
+  confetti() {
+    if (!this.engine || !this.playerEl) return;
+    const cell = this.cell;
+    const cx = this.engine.player[1] * cell + cell / 2;
+    const cy = this.engine.player[0] * cell + cell / 2;
+    const colors = ["#ffd166", "#6c8cff", "#5fd08a", "#ff7aa2", "#ffa94d", "#8aa2ff"];
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement("div");
+      p.className = "confetti2d";
+      const sz = 4 + Math.random() * 5;
+      p.style.width = `${sz}px`;
+      p.style.height = `${sz * 0.6}px`;
+      p.style.background = colors[i % colors.length];
+      p.style.left = `${cx}px`;
+      p.style.top = `${cy}px`;
+      this.boardEl.appendChild(p);
+      const ang = Math.random() * Math.PI * 2;
+      const dist = cell * 0.7 + Math.random() * cell * 1.7;
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist - cell * 0.4;   // bias slightly upward
+      const rot = Math.random() * 720 - 360;
+      const anim = p.animate(
+        [{ transform: "translate(-50%,-50%) translate(0,0) rotate(0deg)", opacity: 1 },
+         { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) rotate(${rot}deg)`, opacity: 1, offset: 0.7 },
+         { transform: `translate(-50%,-50%) translate(${dx}px,${dy + cell * 0.7}px) rotate(${rot}deg)`, opacity: 0 }],
+        { duration: 1100 + Math.random() * 500, easing: "cubic-bezier(.2,.7,.3,1)" },
+      );
+      anim.onfinish = anim.oncancel = () => p.remove();
+    }
   }
 }
