@@ -296,6 +296,77 @@ document.getElementById("replayFile").addEventListener("change", (e) => {
   reader.readAsText(file);
 });
 
+// Build all frames for one episode by anchoring to the initial board state
+// and simulating every action locally — never trusting exported board_before /
+// board_after data after step 1, which is often from a different episode.
+function buildEpisodeFrames(rawSteps) {
+  if (!rawSteps.length) return [];
+
+  // The initial board state is always in step 1's board_before at steps_used=0.
+  const initObs = getObs(rawSteps[0].board_before);
+  if (!initObs?.grid) return rawSteps.flatMap(s => expandLLMStep(s));
+
+  const maxSteps = (initObs.steps_used || 0) + (initObs.steps_remaining || 100);
+  const game = new Sokoban({
+    name: "replay",
+    grid: initObs.grid,
+    goal: initObs.goal,
+    max_steps: maxSteps,
+  });
+
+  const frames = [];
+
+  for (let i = 0; i < rawSteps.length; i++) {
+    const llmStep  = rawSteps[i];
+    const reasoning = llmStep.reasoning || llmStep.action || "";
+    const isLastCall = i === rawSteps.length - 1;
+
+    // Thinking frame — board state before this LLM call's actions.
+    frames.push({
+      obs: obsFromGame(game, initObs),
+      action: null,
+      reasoning,
+      isLLMStart: true,
+      isInvalid: false,
+      terminated: false,
+      truncated: false,
+      reward: 0,
+    });
+
+    if (game.won) break;
+
+    // Extract actions: for single-char responses (discrete mode) this is one
+    // token; for verbose text responses it may be many direction tokens.
+    const allActions = extractAllActions(reasoning);
+    const actionsToRun = allActions.length > 0
+      ? allActions
+      : (() => { const p = parseAction(reasoning); return "NSEW".includes(p) ? [p] : []; })();
+
+    for (let j = 0; j < actionsToRun.length; j++) {
+      const act    = actionsToRun[j];
+      const valid  = game.move(act);
+      const isLastAction = j === actionsToRun.length - 1;
+
+      frames.push({
+        obs: obsFromGame(game, initObs),
+        action: act,
+        reasoning: isLastAction ? reasoning : null,
+        isLLMStart: false,
+        isInvalid: !valid,
+        terminated: isLastAction && isLastCall ? (llmStep.terminated || game.won) : game.won,
+        truncated:  isLastAction && isLastCall ? (llmStep.truncated  || false) : false,
+        reward:     isLastAction               ? (llmStep.reward     || 0)     : 0,
+      });
+
+      if (game.won) break;
+    }
+
+    if (game.won) break;
+  }
+
+  return frames;
+}
+
 function buildEpisodes() {
   const epMeta = {};
   for (const ep of (replayData.episodes || [])) {
@@ -303,9 +374,8 @@ function buildEpisodes() {
   }
   episodes = [];
   for (const [id, rawSteps] of Object.entries(replayData.replay || {})) {
-    const meta = epMeta[id] || {};
-    // Expand each LLM call into individual move frames
-    const steps = rawSteps.flatMap(s => expandLLMStep(s));
+    const meta  = epMeta[id] || {};
+    const steps = buildEpisodeFrames(rawSteps);
     episodes.push({ id, seed: meta.seed ?? "?", won: meta.total_reward > 0, steps });
   }
   episodes.sort((a, b) => a.seed - b.seed);
