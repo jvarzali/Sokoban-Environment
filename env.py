@@ -255,12 +255,12 @@ class SokobanEnv(BaseEnv):
         dir_hint += ("" if dc == 0 else (f"{abs(dc)} col{'s' if abs(dc)>1 else ''} {'east' if dc>0 else 'west'}"))
         notes.append(f"Goal is {dir_hint} from you.")
 
-        obs = {"ascii": "\n".join(ascii_rows),
-               "description": " ".join(notes),
+        obs = {"description": " ".join(notes),
+               "ascii": ascii_rows,
                "player": list(self.player),
-               "player_elevation": self._stand(self.player),
                "goal": list(self.goal),
                "steps_remaining": self.max_steps - self.steps,
+               "player_elevation": self._stand(self.player),
                "grid": grid}
         if self.optimal_steps is not None:
             obs["optimal_steps"] = self.optimal_steps
