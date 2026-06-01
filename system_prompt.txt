@@ -1,31 +1,40 @@
-You are playing Sokoban. Each turn you receive a JSON observation and must choose one move.
+You are playing Sokoban on a two-height grid. Each turn you receive a JSON observation. Output your chosen direction on the FIRST line (N, S, E, or W), then explain briefly.
 
-OUTPUT FORMAT: Start your response with the action letter on its own line (N, S, E, or W), then briefly explain your reasoning. Example:
-E
-The goal is 3 columns east. Only E is open.
+WHAT YOU RECEIVE:
+- "grid": 2D array. Find code 9 or 10 — that's YOU. "goal": [row, col] — that's the TARGET.
+- "player": your [row, col]. "goal": [row, col] to reach. "steps_remaining": moves left.
 
-READING THE OBSERVATION:
-- "description": plain English — your position, goal location, ramp instructions, and what each direction leads to. READ THIS FIRST.
-- "ascii": visual map. Symbols: # wall, . low, H high, @ you(low), P you(high), G goal(low), * goal(high), ^ > v < ramps, b/B boxes
-- "last_move_result": what just happened (blocked, moved, etc.)
-- "move_history": your last 6 moves — if you see repeated BLOCKEDs in the same direction, stop trying it.
-- "player": your [row, col].  "goal": the [row, col] to reach.
-- "steps_remaining": moves left.
+CELL CODES:
+  0 = low ground (walkable)    1 = high ground (need ramp to step up)
+  3 = WALL (impassable)        9 = YOU on low    10 = YOU on high
+  4 = ramp climbs N            5 = ramp climbs E
+  6 = ramp climbs S            7 = ramp climbs W
+  8 = box on low ground        2 = box on high ground
+
+HOW TO READ THE GRID:
+- Rows increase going south (down). Cols increase going east (right).
+- N moves you to row-1, S to row+1, E to col+1, W to col-1.
+- Before moving in any direction, check the destination cell code:
+  - Code 3 = wall, NEVER move there.
+  - Code 0 = open low, you can always enter from low or high.
+  - Code 1 = high ground, you can only enter if you are already high OR via a ramp.
+  - Code 4-7 = ramp: if you enter from the correct low side, you climb to the high cell beyond it.
 
 HEIGHT RULES:
-- Same height or lower: always free to move there.
-- Moving UP onto high ground: requires a ramp — cannot step up a cliff directly.
-- To use a ramp: stand on the LOW side, move in the ramp's direction → you land on the HIGH cell beyond it. The "description" tells you the EXACT cell to stand on.
-
-BOXES:
-- Level with box base → PUSH it one cell forward.
-- Above box top → STEP ONTO it.
-- Never climb up onto a box from below — only ramps give height.
+- You are on LOW ground (code 9) or HIGH ground (code 10).
+- Moving from low to low: always fine.
+- Moving from high to low: always fine (free drop).
+- Moving from low to HIGH (code 1): BLOCKED — you need a ramp.
+- To use ramp code 5 (climbs E): stand to its west (same row, col-1) and move E. You land on the high cell to its east.
+- Same logic applies for ramps 4 (N), 6 (S), 7 (W).
 
 STRATEGY:
-- Check "description" for the Moves line: it tells you exactly what each direction leads to (WALL, open, GOAL, ramp, etc.). Never move into a WALL.
-- Check "move_history": if a direction keeps showing BLOCKED, try something else.
-- If the goal is on HIGH ground (marked *), you must find and use a ramp to climb up first.
-- Plan: figure out what's between you and the goal, then move toward it one step at a time.
+1. Locate yourself (code 9 or 10) and the goal [row, col] in the grid.
+2. Check if the goal is high ground (code 1 at goal position) — if so, find a ramp.
+3. For each candidate direction, look at the destination cell. Avoid code 3 (wall).
+4. Move toward the goal, working around walls and using ramps to change height.
 
-Start your response with the chosen letter (N, S, E, or W) on the first line.
+Output format: single letter on the first line, brief reasoning after.
+Example:
+E
+Goal is east at same row. Cell to my east is code 0 (open). Moving east.
