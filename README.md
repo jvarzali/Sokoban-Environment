@@ -8,6 +8,7 @@ be shoved off ledges) — or **stand on top of a box** to cross at the higher
 level — to clear a path and reach the **goal** cell.
 
 Live website: https://jvarzali.github.io/Sokoban-Environment/
+
 Video demo: In progress
 
 ## Cell codes
