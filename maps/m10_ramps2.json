@@ -66,5 +66,6 @@
     2,
     4
   ],
+  "optimal_steps": 8,
   "max_steps": 100
 }
