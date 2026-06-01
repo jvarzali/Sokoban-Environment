@@ -265,7 +265,7 @@
   <script src="replay.js"></script>
   <script>
     // Populate the bundled-run dropdown from runs/index.json, then load on select.
-    fetch("runs/index.json")
+    fetch("runs/index.json?v=" + Date.now())
       .then(r => r.json())
       .then(runs => {
         const sel = document.getElementById("bundledRunSel");
