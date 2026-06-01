@@ -7,8 +7,6 @@ high), a wall, a ramp, a box, or the player. You walk square to square
 be shoved off ledges) — or **stand on top of a box** to cross at the higher
 level — to clear a path and reach the **goal** cell.
 
-Full rule spec: [`sokoban-plan.md`](sokoban-plan.md).
-
 ## Cell codes
 
 | Code | Meaning | Elevation |

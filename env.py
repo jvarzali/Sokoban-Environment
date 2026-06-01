@@ -4,8 +4,6 @@
 # walls are impassable. The player walks flat, drops down ledges for free, and
 # climbs the one height step only by crossing a correctly-oriented ramp. Boxes
 # and ramps are single-push obstacles/tools. Reach the goal cell to win.
-#
-# See sokoban-plan.md for the full rule spec.
 import json
 import glob
 import os
